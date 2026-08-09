@@ -95,8 +95,15 @@ defaults:
 ## Built for Your Stack
 
 - **Kubernetes-native** — CRD-driven, works with any K8s cluster
-- **GitOps-first** — Integrates with Argo CD ApplicationSets
+- **GitOps-first** — Integrates directly with Argo CD Application CRs via Server-Side Apply
 - **Mesh-agnostic** — Gateway API, Istio, or Linkerd
 - **Protocol-aware** — HTTP, gRPC, ConnectRPC with SDK interceptors
 - **Git provider flexible** — GitLab and GitHub webhooks
-- **CLI included** — `diverge init`, `diverge list`, `diverge open`
+- **CLI included** — 7 robust commands (`create`, `list`, `delete`, `open`, `logs`, `validate`, `version`)
+
+## Quality & Features
+
+- Built with **Go 1.26** and rigorously verified with **117 tests**
+- **Single consolidated Docker image** (distroless, multi-arch) covering both controller and proxy
+- **Proxy Capabilities**: Structured logging (logr/zap), graceful shutdown with drain timeout, and CORS origin allowlist
+- **Helm chart** with comprehensive proxy deployment support

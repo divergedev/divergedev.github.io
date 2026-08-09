@@ -37,3 +37,14 @@ Diverge is an open-source environment-as-a-service engine for Kubernetes. It all
 | Speed | Fast (Delta) | Slow | Fast | Fast (Local) |
 | Cost | Low | High | Medium (SaaS) | Medium (SaaS) |
 | Open Source | Yes | N/A | No | Partial |
+
+## Quality
+
+Diverge is rigorously tested, featuring 117 tests across 17 packages to ensure robust preview environments.
+
+## Roadmap (Coming Soon)
+
+- **WebSocket Support** — Full WebSocket proxying for real-time preview environments (Issue #6)
+- **Controller EnvTest + E2E** — Comprehensive integration tests with Kubernetes envtest (Issue #9)
+- **ConnectRPC API Server** — gRPC/ConnectRPC API for programmatic environment management (Issue #12)
+- **Proxy Improvements** — Request size limits, connection pooling, metrics endpoint
