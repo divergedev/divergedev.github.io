@@ -1,0 +1,102 @@
+---
+title: Diverge — Preview Environments That Just Work
+description: Open-source environment-as-a-service for Kubernetes. Deploy only what changed, route with headers, tear down automatically.
+template: splash
+hero:
+  title: Preview Environments <br/> That Just Work
+  tagline: Open-source environment-as-a-service for Kubernetes. Delta deployments. Header-based routing. Automatic teardown.
+  actions:
+    - text: Get Started
+      link: /getting-started/quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/divergedev/diverge
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, Icon } from '@astrojs/starlight/components';
+
+## The Problem
+
+Your team runs 50 microservices on Kubernetes. A developer changes one service and opens an MR. To test it, you clone the **entire** staging environment — 50 deployments, databases, config maps. It takes 15 minutes and costs $47/day in cloud resources.
+
+**There has to be a better way.**
+
+## The Diverge Way
+
+<CardGrid>
+  <Card title="Delta Deployments" icon="rocket">
+    Deploy **only the services that changed**. Diverge detects which services are affected by a code change and deploys just those — sharing baseline services for everything else.
+  </Card>
+  <Card title="Header-Based Routing" icon="random">
+    Route traffic to your preview environment with a single HTTP header. No extra load balancers. No DNS wildcard. Works with Istio, Gateway API, and gRPC.
+  </Card>
+  <Card title="Automatic Lifecycle" icon="setting">
+    Environments spin up on MR open and tear down on merge. TTL expiry catches the rest. Zero zombie environments, zero wasted spend.
+  </Card>
+  <Card title="Database Modes" icon="document">
+    Choose how your preview gets data: shared baseline, fresh schema, snapshot clone, or isolated per-schema. Each MR gets the right level of isolation.
+  </Card>
+</CardGrid>
+
+## How It Works
+
+```yaml
+# .diverge.yaml — add to your repo
+version: "1"
+services:
+  api:
+    paths: ["services/api/**"]
+    image:
+      repository: registry.example.com/api
+      tag_template: "mr-{{.MR}}"
+    helm:
+      path: charts/api
+  web:
+    paths: ["services/web/**"]
+    image:
+      repository: registry.example.com/web
+      tag_template: "mr-{{.MR}}"
+    helm:
+      path: charts/web
+
+defaults:
+  deploy:
+    mode: delta
+  routing:
+    mode: header
+    baseline_namespace: staging
+  lifecycle:
+    ttl: 72h
+    cleanup_on_merge: true
+```
+
+**That's it.** Open an MR, and Diverge handles the rest.
+
+## By the Numbers
+
+<CardGrid>
+  <Card title="45 seconds" icon="approve-check">
+    Average time to deploy a preview environment with delta mode.
+  </Card>
+  <Card title="90% less" icon="down-caret">
+    Resource usage compared to full namespace clones.
+  </Card>
+  <Card title="Zero" icon="close">
+    Zombie environments. TTL + merge cleanup = no waste.
+  </Card>
+  <Card title="1 header" icon="right-arrow">
+    All it takes to route traffic to your preview.
+  </Card>
+</CardGrid>
+
+## Built for Your Stack
+
+- **Kubernetes-native** — CRD-driven, works with any K8s cluster
+- **GitOps-first** — Integrates with Argo CD ApplicationSets
+- **Mesh-agnostic** — Gateway API, Istio, or Linkerd
+- **Protocol-aware** — HTTP, gRPC, ConnectRPC with SDK interceptors
+- **Git provider flexible** — GitLab and GitHub webhooks
+- **CLI included** — `diverge init`, `diverge list`, `diverge open`

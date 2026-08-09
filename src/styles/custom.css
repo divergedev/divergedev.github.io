@@ -1,0 +1,54 @@
+:root {
+  --sl-font: 'Inter', sans-serif;
+  --sl-font-mono: 'JetBrains Mono', monospace;
+  --sl-color-accent-low: #1a1035;
+  --sl-color-accent: #7c3aed;
+  --sl-color-accent-high: #c4b5fd;
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #eeeeee;
+  --sl-color-gray-2: #c2c2c2;
+  --sl-color-gray-3: #8b8b8b;
+  --sl-color-gray-4: #585858;
+  --sl-color-gray-5: #383838;
+  --sl-color-gray-6: #272727;
+  --sl-color-black: #141414;
+}
+
+[data-theme='dark'] {
+  --sl-color-bg-nav: #0d0d0d;
+  --sl-color-bg-sidebar: #111111;
+  --sl-color-hairline-light: #222222;
+}
+
+/* Hero section styling */
+.hero {
+  background: radial-gradient(ellipse at 50% 0%, rgba(124, 58, 237, 0.15) 0%, transparent 70%);
+  padding: 4rem 0;
+}
+
+.hero h1 {
+  font-size: 3.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  background: linear-gradient(135deg, #c4b5fd, #7c3aed, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Subtle glow on code blocks */
+pre {
+  border: 1px solid rgba(124, 58, 237, 0.2);
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.05);
+}
+
+/* Navigation link hover */
+.sidebar-content a:hover {
+  color: var(--sl-color-accent-high);
+}
+
+/* Badge styles */
+.sl-badge {
+  background: var(--sl-color-accent);
+  color: white;
+}
