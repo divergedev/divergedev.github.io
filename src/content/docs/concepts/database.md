@@ -21,6 +21,16 @@ Writes from the preview environment will affect the shared database. Use this mo
 
 In this mode, Diverge provisions a new, isolated logical schema (or database) within your existing shared database cluster. This provides logical isolation without the overhead of spinning up new database compute instances.
 
+Diverge's `SchemaProvider` handles the full lifecycle:
+
+1. **Provision**: Creates a PostgreSQL schema with a sanitized name (format: `diverge_env_<name>`, validated against `^[a-z][a-z0-9_]{0,62}$`). A Kubernetes Secret containing the `DATABASE_URL` is created in the preview namespace.
+2. **Status**: Queries `information_schema.schemata` to verify the schema exists.
+3. **Teardown**: Drops the schema with `CASCADE` and deletes the associated Secret.
+
+:::tip
+Enable schema mode by setting `--database-provider=schema` on the controller. The provider connects to your existing PostgreSQL/AlloyDB cluster and manages schemas within it.
+:::
+
 ## 3. Snapshot Mode
 
 **Best for:** Testing against production-like datasets.

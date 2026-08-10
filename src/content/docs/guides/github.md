@@ -36,3 +36,23 @@ Once configured, Diverge will automatically post comments on your pull requests 
 :::note
 Diverge incorporates strict path traversal prevention and payload validation to ensure webhook processing is highly secure.
 :::
+
+## 4. Merge Gating with Commit Statuses
+
+Diverge posts commit status checks to GitHub, enabling required status checks for pull request merging.
+
+The `diverge/preview` status transitions through:
+- **pending** → Environment is being provisioned or deploying
+- **success** → Environment is healthy
+- **failure** → Provisioning or deployment failed
+- **error** → Environment was canceled
+
+To enforce the check, add a **branch protection rule**:
+
+1. Go to **Settings** → **Branches** → **Branch protection rules**
+2. Check **Require status checks to pass before merging**
+3. Search for and add `diverge/preview`
+
+:::note
+GitHub uses slightly different state names than GitLab. Diverge automatically maps its internal states (e.g., `failed` → `failure`, `canceled` → `error`).
+:::

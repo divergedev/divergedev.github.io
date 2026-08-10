@@ -11,6 +11,7 @@ Diverge is a Kubernetes-native engine that uses a single consolidated Docker ima
 2. **Proxy**: A lightweight layer-7 router that intercepts traffic, inspects RFC 7230 compliant headers, and dynamically routes requests to either the preview namespace or the shared baseline.
 3. **Webhook Handler**: An HTTP server that securely processes incoming GitHub and GitLab webhooks, executing strict payload validation before triggering the controller.
 4. **CLI**: A robust developer tool (`diverge`) for creating, validating, and managing environments locally.
+5. **Status Reporter**: Posts commit status checks (`diverge/preview`) to GitLab and GitHub for merge gating. Validates commit SHAs against a hex-only regex to prevent path traversal.
 
 ## Security Architecture Highlights
 
@@ -21,6 +22,9 @@ Diverge is built with a **Security First** mindset:
 - **Shell/Markdown Injection Prevention**: All templates and outputs are sanitized to prevent injection attacks.
 - **Strict YAML Unmarshaling**: Configuration parsing uses `DisallowUnknownFields` to prevent misconfigurations or tampering.
 - **Context Timeouts**: All external network calls enforce strict context timeouts.
+- **SHA Validation**: Commit SHAs are validated against a hex-only regex before use in API URLs.
+- **Label Validation**: Namespace label keys/values are validated using Kubernetes validation utilities.
+- **SQL Injection Prevention**: Schema names use regex-gated validation since parameterized DDL isn't possible.
 
 ## Flow Diagram
 
@@ -33,6 +37,7 @@ graph TD
     CRD --> Controller[Diverge Controller]
     
     Controller -->|Server-Side Apply| Argo[Argo CD]
+    Controller -->|Commit Status| Git
     Controller -->|Provision| DB[(Database)]
     
     Argo -->|Deploy| PreviewNs[Preview Namespace]

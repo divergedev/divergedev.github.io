@@ -35,3 +35,24 @@ With the integration active, Diverge will automatically comment on your Merge Re
 :::tip
 Diverge implements path traversal prevention on all webhook parsing for enhanced security.
 :::
+
+## 4. Merge Gating with Commit Statuses
+
+Diverge can post commit status checks to GitLab, allowing you to gate merges on preview environment health.
+
+When enabled, Diverge posts a `diverge/preview` commit status that transitions through:
+- **pending** → Environment is being provisioned
+- **running** → Deployment in progress
+- **success** → Environment is healthy and serving traffic
+- **failed** → An error occurred during provisioning
+- **canceled** → Environment was terminated
+
+To require the status check before merging, configure a **protected branch rule** in GitLab:
+
+1. Go to **Settings** → **Repository** → **Protected branches**
+2. Select your target branch (e.g., `main`)
+3. Under **Status checks**, add `diverge/preview`
+
+:::note
+Commit SHAs are validated against a hex-only regex before being used in GitLab API calls, preventing path traversal attacks.
+:::

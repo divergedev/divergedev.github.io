@@ -51,6 +51,8 @@ export default defineConfig({
             { label: 'Routing Modes', slug: 'concepts/routing' },
             { label: 'Database Modes', slug: 'concepts/database' },
             { label: 'Lifecycle', slug: 'concepts/lifecycle' },
+            { label: 'Merge Gating', slug: 'concepts/merge-gating' },
+            { label: 'Namespace Labels', slug: 'concepts/namespace-labels' },
           ],
         },
         {

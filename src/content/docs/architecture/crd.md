@@ -21,6 +21,7 @@ Configures how the environment is deployed.
 - **`mode`**: The deployment strategy. Valid enums: `delta` (deploy only changed services), `full` (deploy all services).
 - **`changedServices`**: A list of services that have been modified.
 - **`baselineRef`**: Reference to the baseline environment to share unchanged services with (used in `delta` mode).
+- **`namespaceLabels`**: Optional map of labels to apply to the preview namespace. Useful for enabling Istio Ambient mesh (`istio.io/dataplane-mode: ambient`). Labels prefixed with `diverge.io/` are protected and cannot be overridden.
 
 ### `routing`
 Configures ingress and traffic routing.
@@ -48,3 +49,6 @@ The `status` subresource is updated by the Diverge controller to reflect the cur
 - **`conditions`**: Standard Kubernetes conditions (`NamespaceReady`, `DatabaseReady`, etc.).
 - **`createdAt`**: Timestamp of environment creation.
 - **`expiresAt`**: Timestamp of calculated TTL expiry.
+- **`commitSHA`**: The git commit SHA associated with this environment, used for commit status reporting.
+- **`commentID`**: The ID of the MR/PR comment created by the notifier, enabling updates to existing comments.
+- **`commitStatusURL`**: The URL of the commit status check posted to GitLab/GitHub.
