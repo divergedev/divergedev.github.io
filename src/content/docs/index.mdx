@@ -39,6 +39,9 @@ Your team runs 50 microservices on Kubernetes. A developer changes one service a
   <Card title="Database Modes" icon="document">
     Choose how your preview gets data: shared baseline, fresh schema, snapshot clone, or isolated per-schema. Each MR gets the right level of isolation.
   </Card>
+  <Card title="Security First" icon="approve-check">
+    Finalizer-based teardown, RFC 7230 header validation, path traversal prevention, and constant-time secret comparison ensure your infrastructure stays secure.
+  </Card>
 </CardGrid>
 
 ## How It Works
@@ -96,6 +99,7 @@ defaults:
 
 - **Kubernetes-native** — CRD-driven, works with any K8s cluster
 - **GitOps-first** — Integrates directly with Argo CD Application CRs via Server-Side Apply
+- **Kustomize + Helm** — ArgoCD Application generation supports both
 - **Mesh-agnostic** — Gateway API, Istio, or Linkerd
 - **Protocol-aware** — HTTP, gRPC, ConnectRPC with SDK interceptors
 - **Git provider flexible** — GitLab and GitHub webhooks
@@ -103,7 +107,7 @@ defaults:
 
 ## Quality & Features
 
-- Built with **Go 1.26** and rigorously verified with **117 tests**
+- Built with **Go 1.26** and rigorously verified with **147 tests** including Property-Based Testing (PBT) via Hegel
 - **Single consolidated Docker image** (distroless, multi-arch) covering both controller and proxy
 - **Proxy Capabilities**: Structured logging (logr/zap), graceful shutdown with drain timeout, and CORS origin allowlist
 - **Helm chart** with comprehensive proxy deployment support
