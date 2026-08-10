@@ -62,6 +62,7 @@ export default defineConfig({
             { label: 'GitHub Integration', slug: 'guides/github' },
             { label: 'Argo CD', slug: 'guides/argocd' },
             { label: 'CLI Reference', slug: 'guides/cli' },
+            { label: 'Example: GitLab + Kustomize', slug: 'guides/example' },
           ],
         },
         {
