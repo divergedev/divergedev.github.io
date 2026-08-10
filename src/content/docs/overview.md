@@ -14,6 +14,7 @@ Diverge is an open-source environment-as-a-service engine for Kubernetes. It all
 - **Environment CRD:** Declarative Kubernetes resource defining a preview environment.
 - **Delta Deployments:** Deploy only what has changed instead of an entire microservice stack.
 - **Routing Modes:** Uses header-based routing to share baseline environments.
+- **Security Hardened:** Finalizer-based teardown, RFC 7230 header validation, path traversal prevention, and constant-time secret comparison.
 
 ## Architecture
 
@@ -40,11 +41,10 @@ Diverge is an open-source environment-as-a-service engine for Kubernetes. It all
 
 ## Quality
 
-Diverge is rigorously tested, featuring 117 tests across 17 packages to ensure robust preview environments.
+Diverge is rigorously tested, featuring 147 tests across multiple packages to ensure robust preview environments, including Property-Based Testing (PBT) using the Hegel framework.
 
 ## Roadmap (Coming Soon)
 
-- **WebSocket Support** — Full WebSocket proxying for real-time preview environments (Issue #6)
-- **Controller EnvTest + E2E** — Comprehensive integration tests with Kubernetes envtest (Issue #9)
-- **ConnectRPC API Server** — gRPC/ConnectRPC API for programmatic environment management (Issue #12)
-- **Proxy Improvements** — Request size limits, connection pooling, metrics endpoint
+- **KNative Router** — Support for Knative serving routes
+- **GitLab Commit Statuses** — Update MR status with preview environment deploy state
+- **SchemaProvider** — Advanced schema injection for database modes
