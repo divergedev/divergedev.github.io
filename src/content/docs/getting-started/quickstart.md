@@ -3,6 +3,8 @@ title: Quick Start
 description: Get started with Diverge
 ---
 
+> **Want to see it in action first?** Try the [5-minute bank demo](https://github.com/divergedev/demo) — no cluster setup required, just k3d + Docker.
+
 ## Prerequisites
 - Kubernetes cluster
 - Helm

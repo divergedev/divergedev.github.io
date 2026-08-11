@@ -10,6 +10,10 @@ hero:
       link: /getting-started/quickstart/
       icon: right-arrow
       variant: primary
+    - text: Try the Demo
+      link: https://github.com/divergedev/demo
+      icon: external
+      variant: minimal
     - text: View on GitHub
       link: https://github.com/divergedev/diverge
       icon: external
@@ -99,15 +103,17 @@ defaults:
 
 - **Kubernetes-native** — CRD-driven, works with any K8s cluster
 - **GitOps-first** — Integrates directly with Argo CD Application CRs via Server-Side Apply
+- **No-ArgoCD mode** — DirectDeployer with Server-Side Apply, no CD tool required
 - **Kustomize + Helm** — ArgoCD Application generation supports both
 - **Mesh-agnostic** — Gateway API, Istio, or Linkerd
 - **Protocol-aware** — HTTP, gRPC, ConnectRPC with SDK interceptors
 - **Git provider flexible** — GitLab and GitHub webhooks
+- **Test Integration** — Trigger CI pipelines, poll for results, report in MR comments
 - **CLI included** — 7 robust commands (`create`, `list`, `delete`, `open`, `logs`, `validate`, `version`)
 
 ## Quality & Features
 
-- Built with **Go 1.26** and rigorously verified with **147 tests** including Property-Based Testing (PBT) via Hegel
+- Built with **Go 1.26** and rigorously verified with **180+ tests** including Property-Based Testing (PBT) via Hegel
 - **Single consolidated Docker image** (distroless, multi-arch) covering both controller and proxy
 - **Proxy Capabilities**: Structured logging (logr/zap), graceful shutdown with drain timeout, and CORS origin allowlist
 - **Helm chart** with comprehensive proxy deployment support
