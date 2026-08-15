@@ -27,8 +27,12 @@ Diverge is an open-source environment-as-a-service engine for Kubernetes. It all
                      |                     |
                      +-- (Header match)    +-- (Creates)
                      |                     v
-                     v              [Preview Deployment] (Delta)
-              [Baseline Svc]
+                     v              [PreviewGroup] -> [Environments]
+             [Activator Proxy] 
+                     |
+              (Wake & Route)
+                     v
+             [Preview Deployment] (Delta, scalable to 0)
 ```
 
 ## Comparison
@@ -36,15 +40,22 @@ Diverge is an open-source environment-as-a-service engine for Kubernetes. It all
 | Feature | Diverge | Full Namespace Clone | Signadot | Telepresence |
 |---------|---------|----------------------|----------|--------------|
 | Speed | Fast (Delta) | Slow | Fast | Fast (Local) |
-| Cost | Low | High | Medium (SaaS) | Medium (SaaS) |
+| Cost | Lowest (Scale-to-Zero) | High | Medium (SaaS) | Medium (SaaS) |
 | Open Source | Yes | N/A | No | Partial |
 
 ## Quality
 
 Diverge is rigorously tested, featuring 147 tests across multiple packages to ensure robust preview environments, including Property-Based Testing (PBT) using the Hegel framework.
 
+## Recently Shipped
+
+- **KNative Router** — Previews scale to zero and wake automatically on traffic via Activator Proxy
+- **SchemaProvider** — Automatically executes `CREATE SCHEMA IF NOT EXISTS` for seamless database isolation
+- **PreviewGroups** — Higher-level CRD to manage all changed services for a single MR
+
 ## Roadmap (Coming Soon)
 
-- **KNative Router** — Support for Knative serving routes
 - **GitLab Commit Statuses** — Update MR status with preview environment deploy state
-- **SchemaProvider** — Advanced schema injection for database modes
+- **Multi-cluster support** — Deploy previews to remote clusters
+- **Argo Rollouts integration** — Extended progressive delivery features
+- **Preview environment metrics dashboard** — Visibility into cost savings and usage

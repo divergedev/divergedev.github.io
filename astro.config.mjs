@@ -48,6 +48,8 @@ export default defineConfig({
           label: 'Concepts',
           items: [
             { label: 'Delta Deployments', slug: 'concepts/delta-deployments' },
+            { label: 'PreviewGroups', slug: 'concepts/previewgroup' },
+            { label: 'Scale to Zero', slug: 'concepts/scale-to-zero' },
             { label: 'Routing Modes', slug: 'concepts/routing' },
             { label: 'Database Modes', slug: 'concepts/database' },
             { label: 'Lifecycle', slug: 'concepts/lifecycle' },

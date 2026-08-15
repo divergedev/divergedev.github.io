@@ -34,6 +34,12 @@ Your team runs 50 microservices on Kubernetes. A developer changes one service a
   <Card title="Delta Deployments" icon="rocket">
     Deploy **only the services that changed**. Diverge detects which services are affected by a code change and deploys just those — sharing baseline services for everything else.
   </Card>
+  <Card title="PreviewGroups" icon="puzzle">
+    One resource per MR. Manages all changed services, routes, and databases as a single unit.
+  </Card>
+  <Card title="Scale-to-Zero" icon="moon">
+    Idle previews scale to zero automatically. Wake in seconds on first request.
+  </Card>
   <Card title="Header-Based Routing" icon="random">
     Route traffic to your preview environment with a single HTTP header. No extra load balancers. No DNS wildcard. Works with Istio, Gateway API, and gRPC.
   </Card>

@@ -7,11 +7,12 @@ Diverge is a Kubernetes-native engine that uses a single consolidated Docker ima
 
 ## Components
 
-1. **Controller**: The brain of Diverge. A standard Kubernetes operator that watches the `Environment` CRD. It manages the lifecycle of preview environments, directly creates Argo CD `Application` CRs via Server-Side Apply, handles database provisioning, and ensures clean finalizer-based teardowns.
+1. **Controller**: The brain of Diverge. A standard Kubernetes operator that watches the `Environment` and `PreviewGroup` CRDs. It manages the lifecycle of preview environments, directly creates Argo CD `Application` CRs via Server-Side Apply, handles database provisioning, and ensures clean finalizer-based teardowns.
 2. **Proxy**: A lightweight layer-7 router that intercepts traffic, inspects RFC 7230 compliant headers, and dynamically routes requests to either the preview namespace or the shared baseline.
-3. **Webhook Handler**: An HTTP server that securely processes incoming GitHub and GitLab webhooks, executing strict payload validation before triggering the controller.
-4. **CLI**: A robust developer tool (`diverge`) for creating, validating, and managing environments locally.
-5. **Status Reporter**: Posts commit status checks (`diverge/preview`) to GitLab and GitHub for merge gating. Validates commit SHAs against a hex-only regex to prevent path traversal.
+3. **Activator Proxy**: A specialized reverse proxy that sits in front of scaled-to-zero preview environments. It tracks ready pods via a shared informer, routes to active pods directly, and falls back to the Knative activator to wake up dormant environments on-demand.
+4. **Webhook Handler**: An HTTP server that securely processes incoming GitHub and GitLab webhooks, executing strict payload validation before triggering the controller.
+5. **CLI**: A robust developer tool (`diverge`) for creating, validating, and managing environments locally.
+6. **Status Reporter**: Posts commit status checks (`diverge/preview`) to GitLab and GitHub for merge gating. Validates commit SHAs against a hex-only regex to prevent path traversal.
 
 ## Security Architecture Highlights
 
