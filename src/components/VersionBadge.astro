@@ -1,0 +1,28 @@
+---
+let version = 'latest';
+try {
+  const res = await fetch('https://api.github.com/repos/divergedev/diverge/releases/latest', {
+    headers: { 'Accept': 'application/vnd.github.v3+json' }
+  });
+  if (res.ok) {
+    const data = await res.json();
+    version = data.tag_name || 'latest';
+  }
+} catch {
+  // fallback to 'latest'
+}
+---
+<span class="version-badge">{version}</span>
+<style>
+  .version-badge {
+    display: inline-block;
+    padding: 0.2em 0.6em;
+    font-size: 0.85em;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--sl-color-accent-low);
+    color: var(--sl-color-accent-high);
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+  }
+</style>

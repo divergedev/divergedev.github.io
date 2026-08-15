@@ -21,6 +21,9 @@ hero:
 ---
 
 import { Card, CardGrid, Icon } from '@astrojs/starlight/components';
+import VersionBadge from '../../components/VersionBadge.astro';
+
+Latest: <VersionBadge />
 
 ## The Problem
 
@@ -51,6 +54,12 @@ Your team runs 50 microservices on Kubernetes. A developer changes one service a
   </Card>
   <Card title="Security First" icon="approve-check">
     Finalizer-based teardown, RFC 7230 header validation, path traversal prevention, and constant-time secret comparison ensure your infrastructure stays secure.
+  </Card>
+  <Card title="Provider Registry" icon="setting">
+    Pluggable, extensible architecture. Add routing, deployer, or database providers with a single file.
+  </Card>
+  <Card title="Environment Export" icon="document">
+    Export preview environment variables for local development. dotenv, JSON, or shell format.
   </Card>
 </CardGrid>
 
@@ -115,11 +124,13 @@ defaults:
 - **Protocol-aware** — HTTP, gRPC, ConnectRPC with SDK interceptors
 - **Git provider flexible** — GitLab and GitHub webhooks
 - **Test Integration** — Trigger CI pipelines, poll for results, report in MR comments
-- **CLI included** — 7 robust commands (`create`, `list`, `delete`, `open`, `logs`, `validate`, `version`)
+- **Provider Registry** — add custom providers with zero controller changes
+- **Environment Export** — `diverge env export` for local dev workflows
+- **CLI included** — 10+ commands including `dev`, `env export`, `preview`, `create`, `list`, `delete`
 
 ## Quality & Features
 
-- Built with **Go 1.26** and rigorously verified with **180+ tests** including Property-Based Testing (PBT) via Hegel
+- Built with **Go 1.26** and rigorously verified with **200+ tests** including Property-Based Testing (PBT) via Hegel
 - **Single consolidated Docker image** (distroless, multi-arch) covering both controller and proxy
 - **Proxy Capabilities**: Structured logging (logr/zap), graceful shutdown with drain timeout, and CORS origin allowlist
 - **Helm chart** with comprehensive proxy deployment support

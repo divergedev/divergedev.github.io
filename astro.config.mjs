@@ -62,6 +62,8 @@ export default defineConfig({
         {
           label: 'Guides',
           items: [
+            { label: 'Provider Registry', slug: 'guides/provider-registry' },
+            { label: 'Environment Export', slug: 'guides/env-export' },
             { label: 'GitLab Integration', slug: 'guides/gitlab' },
             { label: 'GitHub Integration', slug: 'guides/github' },
             { label: 'Argo CD', slug: 'guides/argocd' },
