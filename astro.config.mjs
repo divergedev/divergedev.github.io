@@ -73,6 +73,12 @@ export default defineConfig({
             { label: 'CRD Reference', slug: 'architecture/crd' },
           ],
         },
+        {
+          label: 'Blog',
+          items: [
+            { label: 'Why We Killed the .env File', slug: 'blog/why-we-killed-the-env-file' },
+          ],
+        },
       ],
     }),
   ],
