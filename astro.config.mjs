@@ -1,9 +1,11 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import mermaid from 'astro-mermaid';
 
 export default defineConfig({
   site: 'https://divergedev.com',
   integrations: [
+    mermaid(),
     starlight({
       title: 'Diverge',
       description: 'Open-source environment-as-a-service for Kubernetes. Delta deployments, header-based routing, and automatic teardown.',
