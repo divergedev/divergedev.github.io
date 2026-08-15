@@ -32,7 +32,7 @@ diverge env export --service api --format dotenv --output .env
 ```
 
 **Output:**
-```env
+```bash
 DATABASE_URL=postgres://user:pass@localhost:5432/mr-123-db
 REDIS_HOST=localhost:6379
 ```
