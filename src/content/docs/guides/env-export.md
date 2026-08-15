@@ -63,8 +63,8 @@ source <(diverge env export --service api --format shell)
 
 **Output:**
 ```bash
-export DATABASE_URL="postgres://user:pass@localhost:5432/mr-123-db"
-export REDIS_HOST="localhost:6379"
+export DATABASE_URL='postgres://user:pass@localhost:5432/mr-123-db'
+export REDIS_HOST='localhost:6379'
 ```
 
 ## IDE Integration Tips

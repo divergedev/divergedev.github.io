@@ -10,9 +10,7 @@ Diverge provides a single consolidated Docker image containing both the controll
 The recommended way to install Diverge is using the official Helm chart:
 
 ```bash
-helm repo add diverge https://divergedev.github.io/helm-charts
-helm repo update
-helm install diverge diverge/diverge --namespace diverge-system --create-namespace
+helm install diverge oci://ghcr.io/divergedev/charts/diverge --namespace diverge-system --create-namespace
 ```
 
 ## Binary Download

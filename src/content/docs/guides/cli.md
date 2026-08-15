@@ -14,10 +14,10 @@ Starts local development mode, routing traffic for a specific service to your lo
 Exports environment variables and connection strings for an active preview environment. Supports `dotenv`, `json`, and `shell` output formats.
 
 ### `diverge preview`
-Creates and manages preview environments. (Alias for or successor to `create`).
+Creates and manages PreviewGroup resources. Use subcommands like `diverge preview create` to create a PreviewGroup that orchestrates multiple services for a single MR/PR.
 
 ### `diverge create`
-Creates a new preview environment.
+Creates a single Environment resource directly.
 
 ### `diverge list`
 Lists all active preview environments for the current repository.
