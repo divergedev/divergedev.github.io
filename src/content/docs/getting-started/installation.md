@@ -32,6 +32,22 @@ helm upgrade --install diverge oci://ghcr.io/divergedev/charts/diverge \
   -f values.yaml
 ```
 
+## Script Download
+
+You can quickly install the latest Diverge CLI using our install script:
+
+```bash
+curl -fsSL https://divergedev.com/install.sh | sh
+```
+
+If you prefer to verify the script contents before executing:
+
+```bash
+curl -fsSL -o install.sh https://divergedev.com/install.sh
+sha256sum install.sh  # verify contents
+sh install.sh
+```
+
 ## Binary Download
 
 Download the Diverge CLI from [GitHub Releases](https://github.com/divergedev/diverge/releases/latest).
