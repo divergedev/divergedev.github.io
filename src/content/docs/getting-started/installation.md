@@ -13,6 +13,25 @@ The recommended way to install Diverge is using the official Helm chart:
 helm install diverge oci://ghcr.io/divergedev/charts/diverge --namespace diverge-system --create-namespace
 ```
 
+### Deploying the ConnectRPC Server
+
+To enable the ConnectRPC server for API access without `kubectl`, configure your `values.yaml`:
+
+```yaml
+# values.yaml
+server:
+  enabled: true
+```
+
+Then upgrade or install the chart:
+
+```bash
+helm upgrade --install diverge oci://ghcr.io/divergedev/charts/diverge \
+  --namespace diverge-system \
+  --create-namespace \
+  -f values.yaml
+```
+
 ## Binary Download
 
 Download the Diverge CLI from [GitHub Releases](https://github.com/divergedev/diverge/releases/latest).

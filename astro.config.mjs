@@ -64,6 +64,8 @@ export default defineConfig({
           items: [
             { label: 'Provider Registry', slug: 'guides/provider-registry' },
             { label: 'Environment Export', slug: 'guides/env-export' },
+            { label: 'ConnectRPC Server', slug: 'guides/server' },
+            { label: 'Authentication', slug: 'guides/auth' },
             { label: 'GitLab Integration', slug: 'guides/gitlab' },
             { label: 'GitHub Integration', slug: 'guides/github' },
             { label: 'Argo CD', slug: 'guides/argocd' },
@@ -74,6 +76,7 @@ export default defineConfig({
           label: 'Architecture',
           items: [
             { label: 'Overview', slug: 'architecture/overview' },
+            { label: 'Server Architecture', slug: 'architecture/server' },
             { label: 'CRD Reference', slug: 'architecture/crd' },
           ],
         },

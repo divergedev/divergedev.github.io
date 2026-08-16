@@ -7,6 +7,21 @@ The Diverge CLI provides tools to interact with your preview environments direct
 
 ## Commands
 
+### `diverge login`
+Authenticates the CLI with a remote Diverge ConnectRPC server using a token.
+
+```bash
+diverge login --server https://diverge.example.com --token <your-token>
+```
+
+### `diverge context`
+Manages connections to multiple Diverge servers.
+
+```bash
+diverge context list
+diverge context use <name>
+```
+
 ### `diverge dev`
 Starts local development mode, routing traffic for a specific service to your local machine while proxying other requests to the baseline environment.
 
