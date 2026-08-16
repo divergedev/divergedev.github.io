@@ -27,6 +27,18 @@ Diverge is built with a **Security First** mindset:
 - **Label Validation**: Namespace label keys/values are validated using Kubernetes validation utilities.
 - **SQL Injection Prevention**: Schema names use regex-gated validation since parameterized DDL isn't possible.
 
+## Async Routing Architecture
+
+To handle non-HTTP workloads, Diverge creates dedicated infrastructure (e.g., Kafka topics) per preview environment. Configuration is injected into the pods, ensuring strict isolation of asynchronous message flows.
+
+## SDK Context Propagation
+
+Diverge SDKs propagate the necessary routing context (like headers) through background threads and inter-service calls, ensuring the entire request lifecycle remains within the intended environment.
+
+## Server Metrics Collection
+
+The Diverge Server exposes a rich set of Prometheus metrics (e.g., `diverge_server_rpc_requests_total`) and health endpoints, allowing operators to monitor system performance and set up alerting.
+
 ## Flow Diagram
 
 ```mermaid

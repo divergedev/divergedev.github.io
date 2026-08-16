@@ -49,27 +49,57 @@ export default defineConfig({
         {
           label: 'Concepts',
           items: [
-            { label: 'Delta Deployments', slug: 'concepts/delta-deployments' },
-            { label: 'PreviewGroups', slug: 'concepts/previewgroup' },
-            { label: 'Scale to Zero', slug: 'concepts/scale-to-zero' },
             { label: 'Routing Modes', slug: 'concepts/routing' },
-            { label: 'Database Modes', slug: 'concepts/database' },
             { label: 'Lifecycle', slug: 'concepts/lifecycle' },
+            { label: 'PreviewGroups', slug: 'concepts/previewgroup' },
+            { label: 'Database Modes', slug: 'concepts/database' },
+            { label: 'Delta Deployments', slug: 'concepts/delta-deployments' },
             { label: 'Merge Gating', slug: 'concepts/merge-gating' },
             { label: 'Namespace Labels', slug: 'concepts/namespace-labels' },
+            { label: 'Scale to Zero', slug: 'concepts/scale-to-zero' },
+            { label: 'Async Routing', slug: 'concepts/async-routing' },
+            { label: 'Observability', slug: 'concepts/observability' },
           ],
         },
         {
           label: 'Guides',
           items: [
-            { label: 'Provider Registry', slug: 'guides/provider-registry' },
-            { label: 'Environment Export', slug: 'guides/env-export' },
-            { label: 'ConnectRPC Server', slug: 'guides/server' },
-            { label: 'Authentication', slug: 'guides/auth' },
-            { label: 'GitLab Integration', slug: 'guides/gitlab' },
-            { label: 'GitHub Integration', slug: 'guides/github' },
-            { label: 'Argo CD', slug: 'guides/argocd' },
-            { label: 'CLI Reference', slug: 'guides/cli' },
+            {
+              label: 'CI/CD',
+              items: [
+                { label: 'GitHub Integration', slug: 'guides/github' },
+                { label: 'GitLab Integration', slug: 'guides/gitlab' },
+                { label: 'Argo CD', slug: 'guides/argocd' },
+              ],
+            },
+            {
+              label: 'Dev Workflow',
+              items: [
+                { label: 'CLI Reference', slug: 'guides/cli' },
+                { label: 'Hot Reload', slug: 'guides/hot-reload' },
+                { label: 'DevSpace Integration', slug: 'guides/devspace' },
+                { label: 'Environment Export', slug: 'guides/env-export' },
+                { label: 'Preview Banner', slug: 'guides/preview-banner' },
+              ],
+            },
+            {
+              label: 'Routing & Networking',
+              items: [
+                { label: 'ConnectRPC Server', slug: 'guides/server' },
+                { label: 'Multi-Repo', slug: 'guides/multi-repo' },
+                { label: 'Authentication', slug: 'guides/auth' },
+                { label: 'Provider Registry', slug: 'guides/provider-registry' },
+                { label: 'Async Routing', slug: 'guides/async-routing' },
+                { label: 'Sticky Routing', slug: 'guides/sticky-routing' },
+                { label: 'WebSocket', slug: 'guides/websocket' },
+              ],
+            },
+            {
+              label: 'Observability',
+              items: [
+                { label: 'Observability', slug: 'guides/observability' },
+              ],
+            },
           ],
         },
         {

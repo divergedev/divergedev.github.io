@@ -7,47 +7,64 @@ The Diverge CLI provides tools to interact with your preview environments direct
 
 ## Commands
 
-### `diverge login`
-Authenticates the CLI with a remote Diverge ConnectRPC server using a token.
+### `diverge create`
+Create an environment from the current branch.
 
-```bash
-diverge login --server https://diverge.example.com --token <your-token>
-```
+### `diverge delete <name>`
+Delete an environment.
 
-### `diverge context`
-Manages connections to multiple Diverge servers.
+### `diverge dev [flags]`
+Route cluster traffic to your local machine.
+- `--service` — Service name (default: auto-detect)
+- `--port` — Local port (default: 8080)
+- `--endpoint` — Local endpoint IP (default: tailscale ip -4)
+- `--env-output` — inject (in-memory) or file (.env.diverge) (default: inject)
+- `--devspace` — Generate devspace.yaml template
 
-```bash
-diverge context list
-diverge context use <name>
-```
+### `diverge dev intercept <service>`
+Intercept a service.
 
-### `diverge dev`
-Starts local development mode, routing traffic for a specific service to your local machine while proxying other requests to the baseline environment.
+### `diverge dev release <service>`
+Stop intercepting.
 
 ### `diverge env export`
-Exports environment variables and connection strings for an active preview environment. Supports `dotenv`, `json`, and `shell` output formats.
+Export env vars (dotenv, json, shell).
 
-### `diverge preview`
-Creates and manages PreviewGroup resources. Use subcommands like `diverge preview create` to create a PreviewGroup that orchestrates multiple services for a single MR/PR.
-
-### `diverge create`
-Creates a single Environment resource directly.
+### `diverge init`
+Initialize a local dev playground.
 
 ### `diverge list`
-Lists all active preview environments for the current repository.
+List all environments.
 
-### `diverge delete`
-Deletes an active preview environment.
+### `diverge logs [env-name]`
+Stream logs.
 
-### `diverge open`
-Automatically opens the preview environment URL associated with the current branch/PR in your default web browser.
+### `diverge open <name>`
+Open env URL in browser.
 
-### `diverge logs`
-Fetches and tails logs for the preview environment.
+### `diverge plugins`
+Manage plugins.
+
+### `diverge preview create`
+Create preview group.
+
+### `diverge preview status <name>`
+Preview group status.
+
+### `diverge preview delete <name>`
+Delete preview group.
+
+### `diverge preview watch <name>`
+Watch until Ready/Failed.
+
+### `diverge providers list`
+List providers.
+
+### `diverge status`
+Show active envs and groups.
 
 ### `diverge validate`
-Validates the local diverge configuration.
+Validate .diverge.yaml.
 
 ### `diverge version`
-Prints the installed Diverge CLI version.
+Print version.
