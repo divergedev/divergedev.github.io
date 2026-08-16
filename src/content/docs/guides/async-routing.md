@@ -13,7 +13,7 @@ Unlike HTTP, async workloads don't have standard headers for routing. Diverge pr
 
 When you run `diverge dev` or create a preview environment, Diverge provisions the necessary async routes based on your configuration.
 
-The `AsyncRoutesReady` condition on the `Environment` CRD tracks the provisioning status.
+The `AsyncRoutingReady` condition on the `Environment` CRD tracks the provisioning status.
 
 ## Injected Environment Variables
 

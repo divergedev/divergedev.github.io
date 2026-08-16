@@ -18,7 +18,7 @@ Route cluster traffic to your local machine.
 - `--service` — Service name (default: auto-detect)
 - `--port` — Local port (default: 8080)
 - `--endpoint` — Local endpoint IP (default: tailscale ip -4)
-- `--env-output` — inject (in-memory) or file (.env.diverge)
+- `--env-output` — inject (in-memory) or file (.env.diverge) (default: inject)
 - `--devspace` — Generate devspace.yaml template
 
 ### `diverge dev intercept <service>`
