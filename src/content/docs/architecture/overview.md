@@ -13,7 +13,7 @@ Diverge is a Kubernetes-native engine that uses a single consolidated Docker ima
 4. **Webhook Handler**: An HTTP server that securely processes incoming GitHub and GitLab webhooks, executing strict payload validation before triggering the controller.
 5. **Server**: An optional ConnectRPC API server that provides a stateless CRD facade, enabling developer access without direct cluster credentials. It can be run as a separate binary.
 6. **CLI**: A robust developer tool (`diverge`) for creating, validating, and managing environments locally.
-6. **Status Reporter**: Posts commit status checks (`diverge/preview`) to GitLab and GitHub for merge gating. Validates commit SHAs against a hex-only regex to prevent path traversal.
+7. **Status Reporter**: Posts commit status checks (`diverge/preview`) to GitLab and GitHub for merge gating. Validates commit SHAs against a hex-only regex to prevent path traversal.
 
 ## Security Architecture Highlights
 

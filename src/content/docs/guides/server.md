@@ -12,7 +12,7 @@ The server can be deployed alongside the Diverge controller using the official H
 When enabled, the Helm chart automatically provisions:
 - **RBAC**: A dedicated ServiceAccount, ClusterRole, and RoleBinding.
 - **Service**: A Kubernetes Service for internal traffic routing.
-- **PDB (PodDisruptionBudget)**: Ensures high availability during node drains or evictions.
+- **PDB (PodDisruptionBudget)**: Limits voluntary disruptions during node drains and cluster maintenance.
 
 ```bash
 helm install diverge oci://ghcr.io/divergedev/charts/diverge \
@@ -56,3 +56,5 @@ curl -X POST http://diverge-server:8080/diverge.v1alpha1.EnvironmentService/List
   -H 'Authorization: Bearer <token>' \
   -d '{"namespace": "default", "page_size": 10}'
 ```
+
+> **Note:** This example uses `http://` for in-cluster development. In production, always use TLS (`https://`) when transmitting bearer tokens.
