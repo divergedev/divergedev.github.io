@@ -83,9 +83,14 @@ export default defineConfig({
               ],
             },
             {
+              label: 'API',
+              items: [
+                { label: 'Server API', slug: 'guides/server' },
+              ],
+            },
+            {
               label: 'Routing & Networking',
               items: [
-                { label: 'ConnectRPC Server', slug: 'guides/server' },
                 { label: 'Multi-Repo', slug: 'guides/multi-repo' },
                 { label: 'Authentication', slug: 'guides/auth' },
                 { label: 'Provider Registry', slug: 'guides/provider-registry' },

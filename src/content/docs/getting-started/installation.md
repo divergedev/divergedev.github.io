@@ -43,7 +43,7 @@ curl -fsSL https://divergedev.com/install.sh | sh
 If you prefer to verify the script contents before executing:
 
 ```bash
-curl -fsSL -o install.sh https://raw.githubusercontent.com/divergedev/diverge/v0.5.0/install.sh
+curl -fsSL -o install.sh https://raw.githubusercontent.com/divergedev/diverge/v0.6.0/install.sh
 sha256sum install.sh
 # Compare against the checksum published in the release notes
 sh install.sh

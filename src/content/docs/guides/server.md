@@ -1,20 +1,18 @@
 ---
-title: ConnectRPC Server
+title: ConnectRPC Server API
 description: Guide to setting up and connecting to the Diverge ConnectRPC server
 ---
 
-The Diverge ConnectRPC server provides a robust API layer over the Diverge Kubernetes CRDs. It enables developers and CI/CD pipelines to manage preview environments without requiring `kubectl` access or direct Kubernetes cluster credentials.
+The Diverge ConnectRPC server provides a robust API layer over the Diverge Kubernetes CRDs. It is an **opt-in**, **stateless CRD facade** that runs as a **separate binary** within the Diverge system, enabling developer access without requiring `kubectl` access or direct Kubernetes cluster credentials.
 
-## What the Server Provides
-
-- **API Access Without kubectl**: Interact with Diverge using a standard REST/gRPC API.
-- **ConnectRPC Protocol**: Fully typed, high-performance API supporting both unary calls and streaming.
-- **Fine-Grained Authentication**: Dual authentication supporting both OIDC and Kubernetes TokenReview.
-- **CLI Integration**: Native support in the Diverge CLI via the `--server` flag and context management.
-
-## Installation
+## Installation and Helm Setup
 
 The server can be deployed alongside the Diverge controller using the official Helm chart by setting `server.enabled: true`.
+
+When enabled, the Helm chart automatically provisions:
+- **RBAC**: A dedicated ServiceAccount, ClusterRole, and RoleBinding.
+- **Service**: A Kubernetes Service for internal traffic routing.
+- **PDB (PodDisruptionBudget)**: Ensures high availability during node drains or evictions.
 
 ```bash
 helm install diverge oci://ghcr.io/divergedev/charts/diverge \
@@ -23,42 +21,38 @@ helm install diverge oci://ghcr.io/divergedev/charts/diverge \
   --set server.enabled=true
 ```
 
-## Configuration
+## Security and Access Control
 
-Server configuration is managed through the Helm values, allowing you to configure authentication providers and TLS.
+### Authentication
 
-```yaml
-# values.yaml
-server:
-  enabled: true
-  auth:
-    # Example OIDC configuration
-    oidc:
-      issuerUrl: "https://auth.example.com"
-      clientId: "diverge-server"
-      groupsClaim: "groups"
-  tls:
-    enabled: true
-    secretName: "diverge-server-tls"
-```
+The server supports a robust dual-authentication model:
+1. **OIDC (OpenID Connect)**: Validates standard JWTs against your identity provider.
+2. **Kubernetes TokenReview**: Validates Kubernetes ServiceAccount tokens.
 
-## Health Endpoints
+### Authorization
 
-The server exposes standard health and readiness endpoints for Kubernetes probes and monitoring:
+Authorization is handled via **namespace-scoped SubjectAccessReview**. The server delegates permission checks to the Kubernetes RBAC system, ensuring users only have access to namespaces where they have appropriate permissions.
 
-- `/healthz`: Liveness probe endpoint.
-- `/readyz`: Readiness probe endpoint.
+### Hardened Security Posture
 
-## Connecting the CLI
+- **Error Sanitization**: Internal server errors and stack traces are sanitized before returning to the client to prevent information disclosure.
+- **Audit Logging**: All mutating API actions are recorded in a structured JSON audit log.
+- **Security Context**: The server pod runs with a hardened `securityContext`, dropping unnecessary privileges and running as a non-root user.
 
-Once the server is running and accessible, you can connect the Diverge CLI using the `diverge login` command:
+## API Features
+
+The ConnectRPC API supports several advanced features for robustness and performance:
+- **Pagination**: List endpoints support cursor-based pagination.
+- **Optimistic Concurrency**: Mutating endpoints support resource version checking to prevent lost updates.
+- **CORS**: Configurable Cross-Origin Resource Sharing for browser-based clients.
+
+## Example Usage
+
+You can interact with the server directly using `curl` and standard HTTP/JSON, thanks to ConnectRPC's seamless JSON support:
 
 ```bash
-# Login using an OIDC or ServiceAccount token
-diverge login --server https://diverge.example.com --token eyJhbGci...
-
-# List environments via the server
-diverge list
+curl -X POST http://diverge-server:8080/diverge.v1alpha1.EnvironmentService/ListEnvironments \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer <token>' \
+  -d '{"namespace": "default", "page_size": 10}'
 ```
-
-For more details on CLI authentication and context management, see the [CLI Reference](/guides/cli).
