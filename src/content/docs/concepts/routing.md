@@ -22,7 +22,14 @@ Diverge is fully compatible with Istio Ambient mode (zero sidecars):
 - **L4 via ztunnel**: Secure L4 networking is handled transparently by the node-level ztunnel.
 - **L7 via Waypoint**: Layer 7 routing (`HTTPRoute`) for header-based routing is processed by the Waypoint proxy.
 - **Gateway API**: Diverge natively generates Kubernetes Gateway API `HTTPRoute` resources to perform the header-based routing, which Istio Ambient consumes.
-- **KNative Kourier**: Fully compatible with KNative's Kourier ingress for namespaces running serverless scale-to-zero workloads.
+- **Knative Kourier**: Fully compatible with Knative's Kourier ingress for namespaces running serverless scale-to-zero workloads.
+
+### Prerequisites
+
+To use L7 header-based routing with Istio Ambient:
+- **Waypoint Proxy**: Deploy an Istio Waypoint proxy in the target namespace (e.g. `istioctl waypoint apply --namespace <namespace>`).
+- **Waypoint Enrollment**: Ensure the namespace or target workloads are labeled with `istio.io/use-waypoint: <waypoint-name>` so L7 traffic is redirected to the Waypoint proxy for policy and routing enforcement.
+- **Ingress Gateway**: For external traffic entering the cluster, configure an Ingress Gateway (such as Istio Ingress Gateway or a Gateway API Gateway) with appropriate listeners and routing to forward requests to the Waypoint proxy or services.
 
 ## Diverge Proxy
 

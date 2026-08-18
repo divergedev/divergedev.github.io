@@ -40,7 +40,7 @@ Your team runs 50 microservices on Kubernetes. A developer changes one service a
     One resource per MR. Manages all changed services, routes, and databases as a single unit.
   </Card>
   <Card title="Scale-to-Zero" icon="moon">
-    Idle PR previews deploy as KNative Services that scale to zero automatically. The Activator buffers requests during the ~5s cold start so no requests are lost.
+    Idle PR previews deploy as Knative Services that scale to zero automatically. The Activator buffers requests during cold start (typically ~5s) while the preview wakes up.
   </Card>
   <Card title="Header-Based Routing" icon="random">
     Route traffic to your preview environment with a single HTTP header. No extra load balancers. No DNS wildcard. Works with Istio, Gateway API, and gRPC.
@@ -49,7 +49,7 @@ Your team runs 50 microservices on Kubernetes. A developer changes one service a
     Environments spin up on MR open and tear down on merge. TTL expiry catches the rest. Zero zombie environments, zero wasted spend.
   </Card>
   <Card title="Three Deployment Modes" icon="setting">
-    Run locally with Tailscale hot-reload (`local`), deploy always-on pods (`image`), or use KNative scale-to-zero (`serverless`).
+    Run locally with Tailscale hot-reload (`local`), deploy always-on pods (`image`), or use Knative scale-to-zero (`serverless`).
   </Card>
   <Card title="Database Modes" icon="document">
     Choose how your preview gets data: shared baseline, fresh schema, snapshot clone, or isolated per-schema. Each MR gets the right level of isolation.
@@ -108,8 +108,8 @@ defaults:
   <Card title="45 seconds" icon="approve-check">
     Average time to deploy a preview environment with delta mode.
   </Card>
-  <Card title="$15/month" icon="down-caret">
-    Cost for 50 PRs using KNative scale-to-zero (down from ~$1,200 with always-on pods).
+  <Card title="~$15/month" icon="down-caret">
+    Illustrative cost for 50 PRs using Knative scale-to-zero (down from ~$1,200 with always-on pods, assuming ~3 concurrently active).
   </Card>
   <Card title="Zero" icon="close">
     Zombie environments. TTL + merge cleanup = no waste.
