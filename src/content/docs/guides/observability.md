@@ -27,6 +27,11 @@ Diverge uses standard `controller-runtime` metrics for tracking reconcile loops 
 - `:8080/healthz`: Controller status
 - `:8081/readyz`: Readiness probe
 
+## Audit Logging
+
+The Diverge server supports structured JSON audit logging for security and compliance. It logs details about authentication, authorization, and mutating API actions, including the user, action, and target resource.
+
+
 ## ServiceMonitor Setup
 
 Diverge can be configured to automatically create `ServiceMonitor` objects by enabling them in the Helm values (`.Values.metrics.serviceMonitor.*` for the controller, and `.Values.server.metrics.serviceMonitor.*` for the server). This allows Prometheus Operator to automatically discover and scrape the metrics endpoints:

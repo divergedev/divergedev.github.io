@@ -40,12 +40,12 @@ You can quickly install the latest Diverge CLI using our install script:
 curl -fsSL https://divergedev.com/install.sh | sh
 ```
 
-If you prefer to verify the script contents before executing:
+If you prefer to inspect the script before executing, the following displays the digest for manual comparison against the release notes:
 
 ```bash
-curl -fsSL -o install.sh https://raw.githubusercontent.com/divergedev/diverge/v0.5.0/install.sh
+curl -fsSL -o install.sh https://raw.githubusercontent.com/divergedev/diverge/v0.6.0/install.sh
 sha256sum install.sh
-# Compare against the checksum published in the release notes
+# Compare the output above against the digest published in the GitHub release notes
 sh install.sh
 ```
 
