@@ -4,7 +4,7 @@ description: Open-source environment-as-a-service for Kubernetes. Deploy only wh
 template: splash
 hero:
   title: Preview Environments <br/> That Just Work
-  tagline: Open-source environment-as-a-service for Kubernetes. Delta deployments. Header-based routing. Automatic teardown.
+  tagline: Open-source environment-as-a-service for Kubernetes. Delta deployments. Serverless scale-to-zero. Header-based routing. Local hot-reload.
   actions:
     - text: Get Started
       link: /getting-started/quickstart/
@@ -40,13 +40,16 @@ Your team runs 50 microservices on Kubernetes. A developer changes one service a
     One resource per MR. Manages all changed services, routes, and databases as a single unit.
   </Card>
   <Card title="Scale-to-Zero" icon="moon">
-    Idle previews scale to zero automatically. Wake in seconds on first request.
+    Idle PR previews deploy as KNative Services that scale to zero automatically. The Activator buffers requests during the ~5s cold start so no requests are lost.
   </Card>
   <Card title="Header-Based Routing" icon="random">
     Route traffic to your preview environment with a single HTTP header. No extra load balancers. No DNS wildcard. Works with Istio, Gateway API, and gRPC.
   </Card>
   <Card title="Automatic Lifecycle" icon="setting">
     Environments spin up on MR open and tear down on merge. TTL expiry catches the rest. Zero zombie environments, zero wasted spend.
+  </Card>
+  <Card title="Three Deployment Modes" icon="setting">
+    Run locally with Tailscale hot-reload (`local`), deploy always-on pods (`image`), or use KNative scale-to-zero (`serverless`).
   </Card>
   <Card title="Database Modes" icon="document">
     Choose how your preview gets data: shared baseline, fresh schema, snapshot clone, or isolated per-schema. Each MR gets the right level of isolation.
@@ -105,8 +108,8 @@ defaults:
   <Card title="45 seconds" icon="approve-check">
     Average time to deploy a preview environment with delta mode.
   </Card>
-  <Card title="90% less" icon="down-caret">
-    Resource usage compared to full namespace clones.
+  <Card title="$15/month" icon="down-caret">
+    Cost for 50 PRs using KNative scale-to-zero (down from ~$1,200 with always-on pods).
   </Card>
   <Card title="Zero" icon="close">
     Zombie environments. TTL + merge cleanup = no waste.

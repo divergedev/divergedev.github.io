@@ -9,9 +9,9 @@ Diverge solves this by allowing your preview environments to **scale to zero** w
 
 ## Why Scale-to-Zero Matters
 
-- **Cost Savings**: Only pay for compute when someone is actively testing a PR.
+- **Massive Cost Savings**: 50 PRs with always-on pods cost ~$1,200/month. With KNative scale-to-zero, that same workload costs ~$15/month.
 - **Resource Efficiency**: Fit hundreds of preview environments on a small cluster.
-- **No Compromises**: Previews wake up automatically when requested, so developers don't have to manually "start" them.
+- **No Compromises**: Previews wake up automatically when a reviewer opens them (cold start is ~5 seconds). The Activator buffers requests so nothing is lost.
 
 ## How It Works
 
@@ -66,13 +66,18 @@ sequenceDiagram
 
 ## Configuration
 
-To enable scale-to-zero for your environments, set the deploy mode to `knative` in your `.diverge.yaml` (or via PreviewGroup spec):
+Diverge supports three deployment modes:
+- `local`: Hot reload using a Tailscale WireGuard tunnel to your laptop.
+- `image`: Always-on standard Kubernetes deployments.
+- `serverless`: Scale-to-zero using KNative Serving.
+
+To enable scale-to-zero for your environments, set the deploy mode to `serverless` in your `.diverge.yaml` (or via PreviewGroup spec):
 
 ```yaml
 # .diverge.yaml
 defaults:
   deploy:
-    mode: knative
+    mode: serverless
 ```
 
-With this configured, Diverge will automatically generate Knative `Service` resources instead of standard Kubernetes `Deployment` + `Service` pairs, complete with the appropriate labels, annotations, and scale-to-zero configurations.
+With this configured, Diverge will automatically generate Knative `Service` resources instead of standard Kubernetes `Deployment` + `Service` pairs. The Activator proxy will buffer incoming requests during the ~5 second cold start, so no requests are lost while the preview wakes up.
