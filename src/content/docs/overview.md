@@ -49,7 +49,7 @@ Diverge is rigorously tested, featuring 147 tests across multiple packages to en
 
 ## Recently Shipped
 
-- **KNative Router** — Previews scale to zero and wake automatically on traffic via Activator Proxy
+- **Knative Router** — Previews scale to zero and wake automatically on traffic via Activator Proxy
 - **SchemaProvider** — Automatically executes `CREATE SCHEMA IF NOT EXISTS` for seamless database isolation
 - **PreviewGroups** — Higher-level CRD to manage all changed services for a single MR
 

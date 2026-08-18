@@ -9,9 +9,9 @@ Diverge solves this by allowing your preview environments to **scale to zero** w
 
 ## Why Scale-to-Zero Matters
 
-- **Cost Savings**: Only pay for compute when someone is actively testing a PR.
+- **Massive Cost Savings**: 50 PRs with always-on pods cost ~$1,200/month. With Knative scale-to-zero, that same workload costs ~$15/month *(illustrative estimate based on 50 always-on pods vs. ~3 concurrently active)*.
 - **Resource Efficiency**: Fit hundreds of preview environments on a small cluster.
-- **No Compromises**: Previews wake up automatically when requested, so developers don't have to manually "start" them.
+- **Fast Startup**: Previews wake up automatically when a reviewer opens them (startup is typically ~5 seconds, but varies with image size, scheduling, and readiness probe configuration). The Activator buffers requests during startup, though requests may time out if pod startup exceeds the client or proxy request timeout.
 
 ## How It Works
 
@@ -66,13 +66,18 @@ sequenceDiagram
 
 ## Configuration
 
-To enable scale-to-zero for your environments, set the deploy mode to `knative` in your `.diverge.yaml` (or via PreviewGroup spec):
+Diverge supports three deployment modes:
+- `local`: Hot reload using a Tailscale WireGuard tunnel to your laptop.
+- `image`: Always-on standard Kubernetes deployments.
+- `serverless`: Scale-to-zero using Knative Serving.
+
+To enable scale-to-zero for your environments, set the deploy mode to `serverless` in your `.diverge.yaml` (or via PreviewGroup spec):
 
 ```yaml
 # .diverge.yaml
 defaults:
   deploy:
-    mode: knative
+    mode: serverless
 ```
 
-With this configured, Diverge will automatically generate Knative `Service` resources instead of standard Kubernetes `Deployment` + `Service` pairs, complete with the appropriate labels, annotations, and scale-to-zero configurations.
+With this configured, Diverge will automatically generate Knative `Service` resources instead of standard Kubernetes `Deployment` + `Service` pairs. The Activator proxy buffers incoming requests during cold start (typically ~5 seconds, though this varies with container image size, scheduling, and readiness probe completion). If pod initialization exceeds the request timeout, requests may time out.
