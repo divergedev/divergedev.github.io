@@ -103,12 +103,14 @@ For external brokers like AWS SQS/SNS, RabbitMQ, or GCP Pub/Sub, use the Webhook
 controller:
   asyncProvider: webhook
   webhook:
-    endpoint: "http://async-provisioner.infra.svc.cluster.local:8080/provision"
+    endpoint: "https://async-provisioner.infra.svc.cluster.local:8443/provision"
 ```
+
+> **Note:** Use HTTPS for webhook endpoints in production. HTTP (`http://`) should only be used in trusted local development environments.
 
 Or via CLI flags on `diverge-controller`:
 - `--async-provider=webhook`
-- `--async-webhook-endpoint=http://async-provisioner.infra.svc.cluster.local:8080/provision`
+- `--async-webhook-endpoint=https://async-provisioner.infra.svc.cluster.local:8443/provision`
 
 #### 2. Implement the Webhook Server
 
@@ -151,9 +153,9 @@ spec:
     asyncRoutes:
       - protocol: sqs
         target: order-notifications
-        envVarMapping:
-          SQS_QUEUE_URL: "{{ .ResolvedTarget }}"
 ```
+
+The webhook response `envVars` (e.g., `SQS_QUEUE_URL`, `SQS_QUEUE_NAME`) are injected directly into the preview pod — no `envVarMapping` is needed when your webhook returns the full key-value pairs.
 
 ---
 
@@ -163,6 +165,7 @@ When async routes are provisioned, Diverge automatically injects standard enviro
 
 | Provider | Injected Variable | Default Value Pattern | Description |
 | :--- | :--- | :--- | :--- |
+| **All** | `DIVERGE_ENV_NAME` | `<env-name>` | Preview environment name (e.g., `pr-456`). Injected by controller. |
 | **Kafka** | `KAFKA_TOPIC` | `<target>-<env-name>` | Dedicated preview topic name |
 | **Kafka** | `KAFKA_CONSUMER_GROUP` | `<target>-<env-name>` | Isolated consumer group name |
 | **Kafka** | `KAFKA_BROKERS` | `broker1:9092,broker2:9092` | Comma-separated Kafka broker list |
@@ -209,7 +212,7 @@ import (
 
 func produceOrderEvent(ctx context.Context, client *kgo.Client, payload []byte) error {
 	topic := os.Getenv("KAFKA_TOPIC")
-	envName := os.Getenv("DIVERGE_ENV_NAME") // e.g. "pr-456"
+	envName := os.Getenv("DIVERGE_ENV_NAME") // Injected by Diverge controller into preview pods (e.g. "pr-456")
 
 	// 1. Prepare base Kafka headers
 	headers := []divergekafka.Header{
@@ -264,10 +267,11 @@ import (
 	divergetemporal "github.com/divergedev/diverge/pkg/sdk/temporal"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
+	"go.temporal.io/sdk/workflow"
 )
 
 func main() {
-	envName := os.Getenv("DIVERGE_ENV_NAME")
+	envName := os.Getenv("DIVERGE_ENV_NAME")     // Injected by Diverge controller into preview pods
 	taskQueue := os.Getenv("TEMPORAL_TASK_QUEUE")
 	namespace := os.Getenv("TEMPORAL_NAMESPACE")
 

@@ -68,7 +68,7 @@ Designed for orchestrating distributed workflows and activities.
 - **Injected Variables**:
   - `TEMPORAL_TASK_QUEUE`: The isolated task queue name.
   - `TEMPORAL_NAMESPACE`: The target Temporal namespace.
-- **Cleanup**: Task queues in Temporal become inactive and are automatically garbage-collected when preview workers stop polling.
+- **Cleanup**: When preview workers stop polling, Temporal unloads idle task queues from memory. Diverge's teardown process ensures any pending tasks are drained before the preview environment is removed.
 
 ### 3. Webhook (Custom Infrastructure)
 For teams utilizing AWS SQS/SNS, Google Cloud Pub/Sub, RabbitMQ, or proprietary in-house brokers.
@@ -104,8 +104,8 @@ Injects and extracts the preview environment identifier (`x-diverge-env`) in Kaf
 ### Temporal Context Propagator (`pkg/sdk/temporal`)
 Implements the `workflow.ContextPropagator` interface from the Temporal Go SDK:
 
-- Automatically propagates the preview environment context across workflow boundaries, child workflows, and activity executions.
-- Guarantees activities scheduled by preview workflows run on preview-scoped task queues.
+- Propagates the preview environment identifier across workflow boundaries and child workflows.
+- Activities are routed to preview-scoped task queues by setting `ActivityOptions.TaskQueue` to the value of `TEMPORAL_TASK_QUEUE` — the propagator carries the environment context, while task-queue routing is configured separately in your activity options.
 
 ---
 

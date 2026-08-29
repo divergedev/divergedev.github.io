@@ -26,9 +26,9 @@ sequenceDiagram
     participant PreviewPod as Preview Pod (pr-123)
 
     Client->>Gateway: GET /ws (Upgrade: websocket, Host: pr-123.preview.example.com)
-    Gateway->>PreviewPod: HTTP 101 Switching Protocols
-    PreviewPod-->>Gateway: 101 Switching Protocols
-    Gateway-->>Client: 101 Switching Protocols
+    Gateway->>PreviewPod: GET /ws (Upgrade: websocket)
+    PreviewPod-->>Gateway: HTTP 101 Switching Protocols
+    Gateway-->>Client: HTTP 101 Switching Protocols
     Note over Client, PreviewPod: Persistent Bidirectional WebSocket Stream
 ```
 
