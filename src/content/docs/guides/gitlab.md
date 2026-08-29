@@ -166,6 +166,14 @@ preview:deploy:
 
 The `<!-- diverge-preview-comment -->` HTML marker ensures only one comment is maintained per MR — subsequent pushes update the existing note instead of creating new ones.
 
+:::caution[Fork Merge Requests]
+When accepting external contributions, restrict deployment jobs to protected branches and mark `KUBECONFIG` and `DIVERGE_GITLAB_TOKEN` as **protected variables** in CI/CD settings. This prevents fork MR pipelines from accessing cluster credentials.
+:::
+
+:::note
+For MRs with many comments, the Notes API returns paginated results. Add `per_page=100` and iterate pages if the marker is not found on the first page.
+:::
+
 ### Automatic Cleanup
 
 Tear down environments when the MR is merged or closed:
@@ -180,11 +188,17 @@ cleanup:
   script:
     - diverge delete "preview-mr-${CI_MERGE_REQUEST_IID}" || true
   rules:
-    - if: $CI_MERGE_REQUEST_EVENT_TYPE == "merged"
-      when: always
-    - if: $CI_MERGE_REQUEST_EVENT_TYPE == "closed"
-      when: always
+    - if: $CI_MERGE_REQUEST_IID
+      when: manual
+      allow_failure: true
+  environment:
+    name: preview/mr-${CI_MERGE_REQUEST_IID}
+    action: stop
 ```
+
+:::note
+Cleanup also runs automatically via the Diverge controller when it receives a merge/close webhook event — the CI job is a fallback safety net. You can use `when: manual` to avoid redundant teardowns, or `when: always` to ensure cleanup even if the webhook fails.
+:::
 
 :::tip
 The full pipeline example with all stages is available at [`examples/gitlab-ci/.gitlab-ci.yml`](https://github.com/divergedev/diverge/tree/main/examples/gitlab-ci) in the Diverge repository.

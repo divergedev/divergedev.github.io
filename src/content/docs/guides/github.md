@@ -118,7 +118,8 @@ Trace the ingress path for each changed service to understand request routing:
 - name: Trace request routes
   id: routes
   run: |
-    for svc in $(echo '${{ steps.diff.outputs.diff_output }}' | jq -r '.services[]?'); do
+    IFS=', ' read -ra SERVICES <<< "${{ steps.diff.outputs.changed_services }}"
+    for svc in "${SERVICES[@]}"; do
       echo "::group::Route trace for $svc"
       diverge route "$svc"
       echo "::endgroup::"
@@ -132,8 +133,20 @@ Create the preview environment and post a summary comment on the PR:
 ```yaml
 - name: Deploy preview environment
   id: deploy
+  env:
+    PR_NUMBER: ${{ github.event.pull_request.number }}
   run: |
-    diverge create --mr "${{ github.event.pull_request.number }}"
+    ENV_NAME="preview-mr-${PR_NUMBER}"
+    DEPLOY_OUTPUT=$(diverge create --mr "${PR_NUMBER}")
+    echo "$DEPLOY_OUTPUT"
+
+    PREVIEW_URL=$(echo "$DEPLOY_OUTPUT" | grep -o 'https://[^ ]*' | head -n 1)
+    if [ -z "$PREVIEW_URL" ]; then
+      PREVIEW_URL="https://${ENV_NAME}.preview.example.com"
+    fi
+
+    echo "env_name=${ENV_NAME}" >> $GITHUB_OUTPUT
+    echo "preview_url=${PREVIEW_URL}" >> $GITHUB_OUTPUT
 
 - name: Comment Preview URL on PR
   uses: actions/github-script@v7
@@ -172,6 +185,14 @@ Create the preview environment and post a summary comment on the PR:
 ```
 
 The `<!-- diverge-preview-comment -->` HTML marker ensures only one comment is maintained per PR — subsequent pushes update the existing comment.
+
+:::caution[Fork Pull Requests]
+This workflow uses `pull_request` which does not grant write access for fork PRs. For repositories accepting external contributions, consider using a separate trusted workflow triggered by `workflow_run` to post comments, avoiding the security risks of `pull_request_target` with untrusted checkout code.
+:::
+
+:::note
+For PRs with many comments, use `github.paginate` instead of `listComments` to ensure the marker is found beyond the first page of results.
+:::
 
 ### Automatic Cleanup
 
