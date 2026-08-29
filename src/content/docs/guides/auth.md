@@ -25,8 +25,12 @@ server:
     oidc:
       issuerUrl: "https://your-domain.zitadel.cloud"
       clientId: "<your-client-id>"
-      groupsClaim: "urn:zitadel:iam:user:role"
+      groupsClaim: "urn:zitadel:iam:org:project:roles"
 ```
+
+:::note
+Zitadel returns roles as a map rather than a flat list. Diverge v0.8.1+ handles this natively, extracting role keys directly from the claims structure.
+:::
 
 ## CLI Authentication
 

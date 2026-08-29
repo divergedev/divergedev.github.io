@@ -59,6 +59,7 @@ export default defineConfig({
             { label: 'Scale to Zero', slug: 'concepts/scale-to-zero' },
             { label: 'Async Routing', slug: 'concepts/async-routing' },
             { label: 'Observability', slug: 'concepts/observability' },
+            { label: 'Service Topology', slug: 'concepts/topology' },
           ],
         },
         {
