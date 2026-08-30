@@ -85,9 +85,6 @@ concurrency:
 permissions:
   contents: read
   pull-requests: write
-
-env:
-  DIVERGE_VERSION: "0.8.1"
 ```
 
 ### Change Detection
@@ -99,6 +96,9 @@ Use `diverge diff` to detect which services changed based on git diff and `.dive
   uses: actions/checkout@v4
   with:
     fetch-depth: 0  # Full history required for accurate diffing
+
+- name: Install Diverge CLI
+  uses: divergedev/setup-diverge@v1
 
 - name: Detect changed services
   id: diff
@@ -204,6 +204,7 @@ cleanup:
   if: github.event.action == 'closed'
   runs-on: ubuntu-latest
   steps:
+    - uses: divergedev/setup-diverge@v1
     - name: Delete preview environment
       run: |
         diverge delete "preview-mr-${{ github.event.pull_request.number }}" || true
@@ -213,18 +214,18 @@ cleanup:
 The full workflow is available at [`examples/github-actions/diverge-preview.yml`](https://github.com/divergedev/diverge/tree/main/examples/github-actions) in the Diverge repository.
 :::
 
-### Binary Caching
+### The `setup-diverge` Action
 
-The example workflow caches the Diverge CLI binary across runs:
+The [`divergedev/setup-diverge`](https://github.com/divergedev/setup-diverge) action handles CLI installation and caching automatically:
 
 ```yaml
-- name: Cache Diverge CLI
-  id: cache-diverge
-  uses: actions/cache@v4
+- uses: divergedev/setup-diverge@v1         # latest version
+- uses: divergedev/setup-diverge@v1          # or pin:
   with:
-    path: ${{ runner.temp }}/bin/diverge
-    key: diverge-cli-${{ runner.os }}-${{ env.DIVERGE_VERSION }}
+    version: '0.8.2'
 ```
+
+It resolves the latest release via GitHub API, caches the binary per OS/arch/version using `actions/cache`, and adds `diverge` to `PATH`.
 
 ---
 
@@ -295,7 +296,7 @@ Standard GitHub Actions variables used in Diverge workflows:
 | Route tracing (`diverge route`) | ✅ | ✅ |
 | Merge gating | ✅ Branch protection | ✅ Protected branches |
 | Config fetching | ✅ Contents API | ✅ Repository Files API |
-| Binary caching | ✅ `actions/cache` | Manual |
+| CLI install + caching | ✅ `setup-diverge@v1` | `curl` + `tar` |
 | Self-hosted support | ✅ | ✅ (`--gitlab-url`) |
 
 ---

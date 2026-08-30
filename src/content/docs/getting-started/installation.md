@@ -43,7 +43,7 @@ curl -fsSL https://divergedev.com/install.sh | sh
 If you prefer to inspect the script before executing, the following displays the digest for manual comparison against the release notes:
 
 ```bash
-curl -fsSL -o install.sh https://raw.githubusercontent.com/divergedev/diverge/v0.8.1/install.sh
+curl -fsSL -o install.sh https://raw.githubusercontent.com/divergedev/diverge/v0.8.2/install.sh
 sha256sum install.sh
 # Compare the output above against the digest published in the GitHub release notes
 sh install.sh
