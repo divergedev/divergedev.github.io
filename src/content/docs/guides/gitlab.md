@@ -340,6 +340,7 @@ Diverge uses standard GitLab CI variables in pipeline configurations:
 | Merge gating | ✅ Branch protection | ✅ Protected branches |
 | Config fetching | ✅ Contents API | ✅ Repository Files API |
 | Pipeline testing | ✅ Workflow dispatch | ✅ Pipeline trigger API |
+| CLI install + caching | ✅ `setup-diverge@v1` | `curl` + `tar` |
 | Self-hosted support | ✅ | ✅ (`--gitlab-url`) |
 | Rate limit handling | ✅ | ✅ (429/403 + Retry-After) |
 
