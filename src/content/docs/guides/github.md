@@ -219,8 +219,13 @@ The full workflow is available at [`examples/github-actions/diverge-preview.yml`
 The [`divergedev/setup-diverge`](https://github.com/divergedev/setup-diverge) action handles CLI installation and caching automatically:
 
 ```yaml
-- uses: divergedev/setup-diverge@v1         # latest version
-- uses: divergedev/setup-diverge@v1          # or pin:
+- uses: divergedev/setup-diverge@v1
+```
+
+To pin a specific version:
+
+```yaml
+- uses: divergedev/setup-diverge@v1
   with:
     version: '0.8.2'
 ```
