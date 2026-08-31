@@ -90,9 +90,14 @@ stages:
   - cleanup
 
 variables:
-  DIVERGE_VERSION: "0.8.1"
   REGISTRY: ${CI_REGISTRY_IMAGE}
+
+# All jobs needing the CLI use this image (git, curl, jq included)
+default:
+  image: ghcr.io/divergedev/diverge-cli:v0.8.2
 ```
+
+To pin a specific version, replace `v0.8.2` with the desired tag. Use `latest` to always get the newest release.
 
 ### Change Detection
 
@@ -101,10 +106,6 @@ Use `diverge diff` to detect which services changed based on git diff and `.dive
 ```yaml
 analyze:
   stage: analyze
-  image: alpine:latest
-  before_script:
-    - apk add --no-cache curl tar jq
-    - curl -sSL "https://github.com/divergedev/diverge/releases/download/v${DIVERGE_VERSION}/diverge_${DIVERGE_VERSION}_linux_amd64.tar.gz" | tar xz -C /usr/local/bin diverge
   script:
     - DIFF_JSON=$(diverge diff --output json --base "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}")
     - echo "${DIFF_JSON}" | jq .
@@ -127,10 +128,6 @@ Create the preview environment and post a summary note on the Merge Request:
 ```yaml
 preview:deploy:
   stage: preview
-  image: alpine:latest
-  before_script:
-    - apk add --no-cache curl tar jq
-    - curl -sSL "https://github.com/divergedev/diverge/releases/download/v${DIVERGE_VERSION}/diverge_${DIVERGE_VERSION}_linux_amd64.tar.gz" | tar xz -C /usr/local/bin diverge
   script:
     - diverge create --mr "${CI_MERGE_REQUEST_IID}"
     # Post sticky MR comment using GitLab Notes API
@@ -181,10 +178,6 @@ Tear down environments when the MR is merged or closed:
 ```yaml
 cleanup:
   stage: cleanup
-  image: alpine:latest
-  before_script:
-    - apk add --no-cache curl tar
-    - curl -sSL "https://github.com/divergedev/diverge/releases/download/v${DIVERGE_VERSION}/diverge_${DIVERGE_VERSION}_linux_amd64.tar.gz" | tar xz -C /usr/local/bin diverge
   script:
     - diverge delete "preview-mr-${CI_MERGE_REQUEST_IID}" || true
   rules:
@@ -340,7 +333,7 @@ Diverge uses standard GitLab CI variables in pipeline configurations:
 | Merge gating | ✅ Branch protection | ✅ Protected branches |
 | Config fetching | ✅ Contents API | ✅ Repository Files API |
 | Pipeline testing | ✅ Workflow dispatch | ✅ Pipeline trigger API |
-| CLI install + caching | ✅ `setup-diverge@v1` | `curl` + `tar` |
+| CLI install + caching | ✅ `setup-diverge@v1` | ✅ `diverge-cli` Docker image |
 | Self-hosted support | ✅ | ✅ (`--gitlab-url`) |
 | Rate limit handling | ✅ | ✅ (429/403 + Retry-After) |
 

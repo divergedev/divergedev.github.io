@@ -301,7 +301,7 @@ Standard GitHub Actions variables used in Diverge workflows:
 | Route tracing (`diverge route`) | ✅ | ✅ |
 | Merge gating | ✅ Branch protection | ✅ Protected branches |
 | Config fetching | ✅ Contents API | ✅ Repository Files API |
-| CLI install + caching | ✅ `setup-diverge@v1` | `curl` + `tar` |
+| CLI install + caching | ✅ `setup-diverge@v1` | ✅ `diverge-cli` Docker image |
 | Self-hosted support | ✅ | ✅ (`--gitlab-url`) |
 
 ---
