@@ -24,8 +24,13 @@ In this mode, Diverge provisions a new, isolated logical schema (or database) wi
 Diverge's `SchemaProvider` handles the full lifecycle:
 
 1. **Provision**: Creates a PostgreSQL schema with a sanitized name (format: `diverge_env_<name>`, validated against `^[a-z][a-z0-9_]{0,62}$`). A Kubernetes Secret containing the `DATABASE_URL` is created in the preview namespace.
-2. **Status**: Queries `information_schema.schemata` to verify the schema exists.
-3. **Teardown**: Drops the schema with `CASCADE` and deletes the associated Secret.
+2. **SetupSQL via Kubernetes Job**: If `setupSQL` is defined in the database configuration, Diverge provisions an ephemeral Kubernetes Job running `psql` within the preview namespace to execute the initialization script:
+   - Admin credentials are mounted securely via Secret reference (`DATABASE_URL`).
+   - The initialization SQL is mounted via a dedicated ConfigMap.
+   - The default container image is pinned by sha256 digest to `postgres:17-alpine` (configurable via Helm at `database.setupJob.image`).
+   - Out-of-process execution ensures arbitrary SQL cannot compromise controller process memory or exhaust controller database pools.
+3. **Status**: Queries `information_schema.schemata` to verify the schema exists and monitors SetupSQL Job completion.
+4. **Teardown**: Drops the schema with `CASCADE` and deletes the associated Secret and Job resources.
 
 :::tip
 Enable schema mode by setting `--database-provider=schema` on the controller. The provider connects to your existing PostgreSQL/AlloyDB cluster and manages schemas within it.

@@ -29,6 +29,7 @@ Diverge can construct and update service topology using multiple discovery sourc
 The topology graph is the foundation for several core Diverge capabilities:
 
 - **Delta Deployments**: Diverge determines which services require isolated preview pods and how to wire fallback routes to the shared baseline environment for unmodified dependencies.
+- **Dynamic Topology Diffs**: In the web dashboard and CLI, Diverge visually highlights `changedServices` within the topology DAG. Reviewers can immediately see which specific nodes are running ephemeral preview builds and which dependencies are routing to the baseline.
 - **Upstream Impact Analysis (`diverge diff`)**: Identifies not only the services modified in your branch or pull request, but also upstream callers that depend on those changes.
 - **Route Simulation (`diverge route`)**: Simulates the traversal of requests from entrypoints to target services, verifying header propagation hops and routing correctness before deployment.
 

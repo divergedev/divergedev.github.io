@@ -58,7 +58,30 @@ For automated pipelines (e.g., GitHub Actions, GitLab CI), it is recommended to 
 
 The token provided can be a long-lived Kubernetes ServiceAccount token with the necessary RBAC permissions to create and manage Diverge CRDs.
 
+## CLI Tunnel Authentication (`diverge dev`)
+
+Starting in `v0.10.0`, reverse tunnels created via `diverge dev` authenticate directly against the ConnectRPC server using Kubernetes TokenReview:
+- Pass credentials with `--token <token>` or the `DIVERGE_TOKEN` environment variable.
+- If omitted, `diverge dev` automatically falls back to bearer credentials configured in the current `kubeconfig` context.
+
+## Secure Cookies Behind TLS Proxies
+
+When the Diverge ConnectRPC server is deployed behind an Ingress controller, API Gateway, or reverse proxy that terminates TLS, session cookies must be protected with the `Secure` flag.
+
+Diverge provides the `--secure-cookies` server flag (`server.secureCookies` in Helm values):
+
+```yaml
+# values.yaml
+server:
+  secureCookies: "auto" # "auto" (default) | "true" | "false"
+```
+
+- **`auto`**: Inspects the `X-Forwarded-Proto` header. If `https`, sets `Secure; SameSite=Lax`. If plain `http` (such as local port-forwarding), omits `Secure` so developers aren't locked out.
+- **`true`**: Unconditionally forces the `Secure` attribute on all session cookies.
+- **`false`**: Disables the `Secure` attribute.
+
 ## Token Lifecycle and Expiry
 
 - **OIDC Tokens**: Rely on the expiration policies set by your IdP. The Diverge CLI will prompt for re-authentication when the token expires.
 - **ServiceAccount Tokens**: It is recommended to use bound ServiceAccount tokens with a set expiration in Kubernetes 1.24+, rather than static, non-expiring secrets, to ensure a secure token lifecycle.
+
