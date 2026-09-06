@@ -14,12 +14,14 @@ Create an environment from the current branch.
 Delete an environment.
 
 ### `diverge dev [flags]`
-Route cluster traffic to your local machine.
+Route cluster traffic to your local machine via an authenticated reverse tunnel.
 - `--service` — Service name (default: auto-detect)
 - `--port` — Local port (default: 8080)
 - `--endpoint` — Local endpoint IP (default: tailscale ip -4)
+- `--token` — Bearer token for server authentication (can also be set via `DIVERGE_TOKEN`; automatically falls back to current `kubeconfig` user token)
 - `--env-output` — inject (in-memory) or file (.env.diverge) (default: inject)
 - `--devspace` — Generate devspace.yaml template
+
 
 ### `diverge dev intercept <service>`
 Intercept a service.
