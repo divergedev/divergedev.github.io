@@ -90,6 +90,12 @@ export default defineConfig({
               ],
             },
             {
+              label: 'Feature Flags',
+              items: [
+                { label: 'OpenFeature Integration', slug: 'guides/feature-flags' },
+              ],
+            },
+            {
               label: 'API',
               items: [
                 { label: 'Server API', slug: 'guides/server' },
