@@ -34,6 +34,8 @@ Diverge's `SchemaProvider` handles the full lifecycle:
 
 :::tip
 Enable schema mode by setting `--database-provider=schema` on the controller. The provider connects to your existing PostgreSQL/AlloyDB cluster and manages schemas within it.
+
+For automated schema lifecycle management, Diverge integrates with **Ariga Atlas** for versioned migrations and declarative schema synchronization. Learn more in the [Atlas Schema Management Guide](/guides/database-atlas).
 :::
 
 ## 3. Snapshot Mode

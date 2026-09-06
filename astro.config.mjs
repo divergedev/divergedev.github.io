@@ -84,6 +84,12 @@ export default defineConfig({
               ],
             },
             {
+              label: 'Database & Migrations',
+              items: [
+                { label: 'Atlas Schema Management', slug: 'guides/database-atlas' },
+              ],
+            },
+            {
               label: 'API',
               items: [
                 { label: 'Server API', slug: 'guides/server' },
