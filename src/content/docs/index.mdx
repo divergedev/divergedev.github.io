@@ -10,69 +10,92 @@ hero:
       link: /getting-started/quickstart/
       icon: right-arrow
       variant: primary
-    - text: Try the Demo
-      link: https://github.com/divergedev/demo
-      icon: external
-      variant: minimal
     - text: View on GitHub
       link: https://github.com/divergedev/diverge
+      icon: external
+      variant: minimal
+    - text: Try the Demo
+      link: https://github.com/divergedev/demo
       icon: external
       variant: minimal
 ---
 
 import { Card, CardGrid, Icon } from '@astrojs/starlight/components';
 
-[![Latest Release](https://img.shields.io/github/v/release/divergedev/diverge?style=flat-square&label=latest&color=00ADD8)](https://github.com/divergedev/diverge/releases/latest)
+<div style="text-align: center; margin-top: -1.5rem; margin-bottom: 3.5rem;">
+  <a href="https://github.com/divergedev/diverge/releases/tag/v0.10.0" class="announcement-pill" target="_blank" rel="noopener noreferrer">
+    <span class="pill-badge">v0.10.0</span>
+    <span class="pill-text">Standalone Atlas schema migrations & Knative scale-to-zero</span>
+    <span class="pill-arrow">→</span>
+  </a>
+</div>
 
-## The Problem
+## Architecture Comparison
 
-Your team runs 50 microservices on Kubernetes. A developer changes one service and opens an MR. To test it, you clone the **entire** staging environment — 50 deployments, databases, config maps. It takes 15 minutes and costs $47/day in cloud resources.
+<div class="comparison-showcase">
+  <div class="comparison-box traditional">
+    <span class="comparison-badge">Traditional Environment Clones</span>
+    <div class="comparison-title">Full Cluster Duplication</div>
+    <ul class="comparison-list">
+      <li>❌ Clones all 50 microservices for a 1-line code change</li>
+      <li>❌ 15–20 minutes pipeline wait time per review</li>
+      <li>❌ ~$47/day per active PR in idle cluster compute</li>
+      <li>❌ Complex wildcard DNS, cert management, and port collisions</li>
+      <li>❌ Orphaned environments draining cloud budgets indefinitely</li>
+    </ul>
+  </div>
 
-**There has to be a better way.**
+  <div class="comparison-box diverge">
+    <span class="comparison-badge">The Diverge Way</span>
+    <div class="comparison-title">Delta Routing & Zero Idle Cost</div>
+    <ul class="comparison-list">
+      <li>⚡️ Deploys <strong>only the service that changed</strong></li>
+      <li>⚡️ <strong>45 seconds</strong> from pull request open to live preview</li>
+      <li>⚡️ Idle previews <strong>scale to zero</strong> (~$15/mo for 50 PRs)</li>
+      <li>⚡️ Dynamic routing via <strong>a single HTTP header</strong> over Istio/Gateway API</li>
+      <li>⚡️ Guaranteed finalizer teardown on PR merge + automated TTL</li>
+    </ul>
+  </div>
+</div>
 
-## The Diverge Way
+## Core Platform Features
 
 <CardGrid>
   <Card title="Delta Deployments" icon="rocket">
-    Deploy **only the services that changed**. Diverge detects which services are affected by a code change and deploys just those — sharing baseline services for everything else.
-  </Card>
-  <Card title="PreviewGroups" icon="puzzle">
-    One resource per MR. Manages all changed services, routes, and databases as a single unit.
+    Deploy **only the services that changed**. Diverge analyzes commit diffs to pinpoint impacted services and shares baseline dependencies for everything else.
   </Card>
   <Card title="Scale-to-Zero" icon="moon">
-    Idle PR previews deploy as Knative Services that scale to zero automatically. The Activator buffers requests during cold start (typically ~5s) while the preview wakes up.
+    Idle PR previews run as Knative services that scale to zero replicas. The Activator proxy seamlessly buffers incoming requests during cold starts.
   </Card>
   <Card title="Header-Based Routing" icon="random">
-    Route traffic to your preview environment with a single HTTP header. No extra load balancers. No DNS wildcard. Works with Istio, Gateway API, and gRPC.
+    Route traffic to your preview environment with a single HTTP header. Works natively with Istio, Envoy, Gateway API, and ConnectRPC.
+  </Card>
+  <Card title="Atlas Schema Management" icon="document">
+    Automate database migrations and declarative schema isolation for each preview environment with Ariga Atlas via standalone K8s Jobs or Atlas Operator.
+  </Card>
+  <Card title="PreviewGroups" icon="puzzle">
+    Manage all changed services, custom routes, and database schemas for an MR as a single atomic, declarative Kubernetes resource.
   </Card>
   <Card title="Automatic Lifecycle" icon="setting">
-    Environments spin up on MR open and tear down on merge. TTL expiry catches the rest. Zero zombie environments, zero wasted spend.
+    Environments provision automatically on MR creation and tear down cleanly on merge. Hard TTL expiry eliminates zombie environments and cloud waste.
   </Card>
-  <Card title="Three Deployment Modes" icon="setting">
-    Run locally with Tailscale hot-reload (`local`), deploy always-on pods (`image`), or use Knative scale-to-zero (`serverless`).
+  <Card title="Local Hot-Reload" icon="laptop">
+    Iterate on live cluster traffic from your laptop without rebuilding containers. Tailscale loopback proxy connects your local port directly to cluster mesh.
   </Card>
-  <Card title="Database Modes" icon="document">
-    Choose how your preview gets data: shared baseline, fresh schema, snapshot clone, or isolated per-schema. Each MR gets the right level of isolation.
+  <Card title="Security-Hardened Architecture" icon="approve-check">
+    RFC 7230 header validation, non-root execution, read-only root filesystems, dropped capabilities, and constant-time secret evaluation.
   </Card>
-  <Card title="Security First" icon="approve-check">
-    Finalizer-based teardown, RFC 7230 header validation, path traversal prevention, and constant-time secret comparison ensure your infrastructure stays secure.
-  </Card>
-  <Card title="Provider Registry" icon="setting">
-    Pluggable, extensible architecture. Add routing, deployer, or database providers with a single file.
-  </Card>
-  <Card title="ConnectRPC API" icon="laptop">
-    A typed, high-performance API foundation. Manage preview environments directly via the server without requiring `kubectl` access.
-  </Card>
-  <Card title="Environment Export" icon="document">
-    Export preview environment variables for local development. dotenv, JSON, or shell format.
+  <Card title="Pluggable Provider Registry" icon="setting">
+    Extensible provider interface for routing (Istio, Gateway API), deployers (Argo CD, Direct), and databases (Postgres, Atlas, AlloyDB).
   </Card>
 </CardGrid>
 
-## How It Works
+## Configuration in Seconds
 
 ```yaml
-# .diverge.yaml — add to your repo
+# diverge.yaml — add to your repository root
 version: "1"
+
 services:
   api:
     paths: ["services/api/**"]
@@ -82,7 +105,7 @@ services:
     helm:
       path: charts/api
   web:
-    paths: ["services/web/**"]
+    paths: ["apps/web/**"]
     image:
       repository: registry.example.com/web
       tag_template: "mr-{{.MR}}"
@@ -91,51 +114,52 @@ services:
 
 defaults:
   deploy:
-    mode: delta
+    mode: delta       # Only deploy services with code changes
   routing:
-    mode: header
+    mode: header      # Route via x-diverge-env header
     baseline_namespace: staging
+    banner:
+      enabled: true   # Injects preview banner in browser responses
+  database:
+    mode: schema      # Ephemeral schema isolation
+    atlas:
+      mode: versioned # Runs Atlas migration job on PR open
+      engine: job
+      migration_config_map: app-migrations
   lifecycle:
     ttl: 72h
     cleanup_on_merge: true
 ```
 
-**That's it.** Open an MR, and Diverge handles the rest.
-
 ## By the Numbers
 
-<CardGrid>
-  <Card title="45 seconds" icon="approve-check">
-    Average time to deploy a preview environment with delta mode.
-  </Card>
-  <Card title="~$15/month" icon="down-caret">
-    Illustrative cost for 50 PRs using Knative scale-to-zero (down from ~$1,200 with always-on pods, assuming ~3 concurrently active).
-  </Card>
-  <Card title="Zero" icon="close">
-    Zombie environments. TTL + merge cleanup = no waste.
-  </Card>
-  <Card title="1 header" icon="right-arrow">
-    All it takes to route traffic to your preview.
-  </Card>
-</CardGrid>
+<div class="metric-bento">
+  <div class="metric-card">
+    <div class="metric-value">45s</div>
+    <div class="metric-label">Average deployment time for PR preview environments in delta mode.</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value">~$15/mo</div>
+    <div class="metric-label">Compute cost for 50 PRs using Knative scale-to-zero (down from ~$1,200/mo).</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value">0</div>
+    <div class="metric-label">Zombie environments. Finalizer cleanup on merge + automated TTL expiry.</div>
+  </div>
+  <div class="metric-card">
+    <div class="metric-value">1 Header</div>
+    <div class="metric-label">All it takes to route mesh traffic directly to your preview changes.</div>
+  </div>
+</div>
 
 ## Built for Your Stack
 
-- **Kubernetes-native** — CRD-driven, works with any K8s cluster
-- **GitOps-first** — Integrates directly with Argo CD Application CRs via Server-Side Apply
-- **No-ArgoCD mode** — DirectDeployer with Server-Side Apply, no CD tool required
-- **Kustomize + Helm** — ArgoCD Application generation supports both
-- **Mesh-agnostic** — Gateway API, Istio, or Linkerd
-- **Protocol-aware** — HTTP, gRPC, ConnectRPC with SDK interceptors
-- **Git provider flexible** — GitLab and GitHub webhooks
-- **Test Integration** — Trigger CI pipelines, poll for results, report in MR comments
-- **Provider Registry** — add custom providers with zero controller changes
-- **Environment Export** — `diverge env export` for local dev workflows
-- **CLI included** — 10+ commands including `dev`, `env export`, `preview`, `create`, `list`, `delete`
-
-## Quality & Features
-
-- Built with **Go 1.26** and rigorously verified with **200+ tests** including Property-Based Testing (PBT) via Hegel
-- **Single consolidated Docker image** (distroless, multi-arch) covering both controller and proxy
-- **Proxy Capabilities**: Structured logging (logr/zap), graceful shutdown with drain timeout, and CORS origin allowlist
-- **Helm chart** with comprehensive proxy deployment support
+- **Kubernetes-native** — 100% CRD-driven, compatible with any CNCF-certified Kubernetes cluster
+- **GitOps First** — Native integration with Argo CD Application CRs using Server-Side Apply
+- **Standalone Direct Mode** — DirectDeployer applies manifests natively without requiring Argo CD
+- **Kustomize & Helm** — Native support for both packaging formats
+- **Service Mesh Agnostic** — Gateway API, Istio, Linkerd, or NGINX Ingress
+- **Protocol Telemetry** — HTTP/1.1, HTTP/2, gRPC, and ConnectRPC with SDK interceptors
+- **Git Provider Automation** — Bi-directional webhooks and MR comment status for GitHub & GitLab
+- **Local Dev Loop** — `diverge dev` hot-reloads local processes directly into remote cluster routing
+- **Enterprise Security** — Non-root distroless containers, PSS Restricted profiles, Cosign-signed images
