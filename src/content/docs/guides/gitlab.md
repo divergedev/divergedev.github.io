@@ -97,9 +97,66 @@ Slash commands are restricted to authorized project members (`OWNER`, `MEMBER`, 
 
 ## 3. GitLab CI/CD Pipeline
 
-Diverge provides a complete CI pipeline example that mirrors the GitHub Actions workflow. Add this to your `.gitlab-ci.yml`:
+### Turnkey GitLab CI/CD Catalog Component (Recommended)
 
-### Pipeline Stages
+Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v1`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
+
+When `diverge_services` is left empty and `.diverge.yaml` is present in your repository, the component **automatically runs `diverge diff --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --output json`**, deploys a delta `PreviewGroup` (`mr-$CI_MERGE_REQUEST_IID`) for only the modified services, and exports a `preview.env` `dotenv` report artifact to downstream E2E test jobs:
+
+```yaml
+include:
+  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v1
+    inputs:
+      diverge_registry: "$CI_REGISTRY_IMAGE"
+      diverge_base_url: "https://staging.example.com"
+      diverge_ttl: "4h"
+
+e2e_preview:
+  stage: test
+  needs: ["diverge:preview"]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - if [ "$DIVERGE_SKIPPED" = "true" ]; then echo "No services changed; skipping E2E."; exit 0; fi
+    - EXTRA_HTTP_HEADERS="$DIVERGE_ROUTING_HEADER_JSON" PREVIEW_URL="$DIVERGE_PREVIEW_URL" npx playwright test
+```
+
+:::tip[Direct File Include]
+If you are self-hosting or referencing the template directly from the repository, you can also include `ci/gitlab/.gitlab-ci-component.yml`. Both `diverge:preview` and `diverge:cleanup` (triggered automatically when `$CI_MERGE_REQUEST_EVENT_TYPE` is `merged` or `closed`) are registered out of the box.
+:::
+
+#### Component Inputs
+
+| Input | Default | Description |
+| :--- | :--- | :--- |
+| `diverge_services` | `""` | Comma-separated list of services to deploy (leave empty to auto-detect with `diverge diff` via `.diverge.yaml`) |
+| `diverge_header_key` | `x-diverge-env` | HTTP header key used to route preview traffic |
+| `diverge_ttl` | `4h` | TTL for preview environments (e.g. `4h`, `24h`) |
+| `diverge_registry` | `""` | Container registry prefix for preview images (defaults to `$CI_REGISTRY_IMAGE`) |
+| `diverge_namespace` | `default` | Default Kubernetes namespace for preview workloads |
+| `diverge_base_url` | `""` | Optional staging/gateway URL to construct a shareable `?_diverge_env=` preview URL |
+| `diverge_kubectl_version` | `v1.31.0` | Version of `kubectl` to install if not present in the runner image |
+
+#### `preview.env` Dotenv Report Variables
+
+The `diverge:preview` job publishes `preview.env` via `artifacts.reports.dotenv`, making these environment variables automatically available in subsequent pipeline stages:
+
+| Variable | Example | Description |
+| :--- | :--- | :--- |
+| `DIVERGE_PREVIEW_NAME` | `mr-42` | Name of the applied `PreviewGroup` resource |
+| `DIVERGE_CHANGED_SERVICES` | `["checkout-api"]` | JSON array of changed services detected by `diverge diff` |
+| `DIVERGE_SKIPPED` | `false` | `"true"` when 0 services changed and preview creation was skipped |
+| `DIVERGE_ROUTING_HEADER` | `x-diverge-env: mr-42` | HTTP routing header string for `curl` / API tests |
+| `DIVERGE_ROUTING_HEADER_JSON` | `{"x-diverge-env":"mr-42"}` | JSON header object for Playwright / Cypress |
+| `DIVERGE_PREVIEW_URL` | `https://staging.example.com/?_diverge_env=mr-42` | Shareable zero-extension browser preview URL |
+
+---
+
+### Manual CLI Pipeline
+
+If you prefer writing custom jobs instead of using the CI/CD Component, add the following to your `.gitlab-ci.yml`:
+
+#### Pipeline Stages
 
 ```yaml
 stages:
@@ -119,7 +176,7 @@ default:
 
 To pin a specific version, replace `v0.8.2` with the desired tag. Use `latest` to always get the newest release.
 
-### Change Detection
+#### Change Detection
 
 Use `diverge diff` to detect which services changed based on git diff and `.diverge.yaml` path mappings:
 
@@ -141,7 +198,7 @@ analyze:
     - if: $CI_MERGE_REQUEST_IID
 ```
 
-### Deploy with Sticky MR Comment
+#### Deploy with Sticky MR Comment
 
 Create the preview environment and post a summary note on the Merge Request:
 
@@ -191,7 +248,7 @@ When accepting external contributions, restrict deployment jobs to protected bra
 For MRs with many comments, the Notes API returns paginated results. Add `per_page=100` and iterate pages if the marker is not found on the first page.
 :::
 
-### Automatic Cleanup
+#### Automatic Cleanup
 
 Tear down environments when the MR is merged or closed:
 
@@ -223,8 +280,8 @@ Configure these in **Settings → CI/CD → Variables**:
 
 | Variable | Type | Masked | Description |
 |----------|------|--------|-------------|
-| `KUBECONFIG` | File | No | Kubernetes cluster credentials |
-| `DIVERGE_GITLAB_TOKEN` | Variable | Yes | GitLab API token with `api` scope |
+| `KUBECONFIG` or `KUBECONFIG_CONTENT` | File / Variable | Yes | Raw kubeconfig file or base64-encoded cluster credentials |
+| `DIVERGE_GITLAB_TOKEN` | Variable | Yes | GitLab API token with `api` scope (for custom sticky notes) |
 
 ---
 

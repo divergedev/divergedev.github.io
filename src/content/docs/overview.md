@@ -5,6 +5,8 @@ description: Overview of Diverge
 
 Diverge is an open-source environment-as-a-service engine for Kubernetes. It allows platform engineers, DevOps, and developers to easily create and manage preview environments.
 
+![Diverge CLI Quickstart Session](/images/terminal-quickstart-demo.svg)
+
 ## Who is it for?
 - **Platform Engineers & DevOps:** Eliminate duplicate staging clusters and reduce cloud costs by using shared baselines.
 - **Developers:** Get instant preview environments for every pull request without waiting for CI pipelines or staging slots.
@@ -38,6 +40,8 @@ Diverge is an open-source environment-as-a-service engine for Kubernetes. It all
 ```
 
 ## Comparison
+
+![Traditional Full-Stack Duplication vs. Diverge Delta Preview](/images/delta-vs-duplicated.svg)
 
 | Feature | Diverge | Full Namespace Clone | Signadot | Telepresence |
 |---------|---------|----------------------|----------|--------------|
