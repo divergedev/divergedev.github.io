@@ -87,6 +87,6 @@ server:
 - **ServiceAccount Tokens**: It is recommended to use bound ServiceAccount tokens with a set expiration in Kubernetes 1.24+, rather than static, non-expiring secrets, to ensure a secure token lifecycle.
 - **Macaroon Capability Tokens (`AgentTask`)**:
   - Minted automatically by `diverge-controller` when an `AgentTask` is provisioned and stored in `<task>-token` (mounted read-only at `/etc/diverge/token/token` inside the sandbox pod) as well as indexed in the namespace-scoped `diverge-agenttask-tokens` `Secret`.
-  - When a sandbox reports token/cost usage to `POST /api/v1/agenttask/meter` that exceeds `max_cost_usd`, `max_tokens`, `budgetUSD`, `budgetTokens`, or `maxIterations` (or when a user runs `/diverge pause`), the token is immediately marked `"revoked"` in `diverge-agenttask-tokens` and the task transitions to `Paused`.
+  - When a sandbox reports `tokensUsed` / `costUSD` usage to `POST /api/v1/agenttask/meter` that exceeds `max_cost_usd`, `max_tokens`, `budgetUSD`, or `budgetTokens` (or when a user runs `/diverge pause`), the token is immediately marked `"revoked"` in `diverge-agenttask-tokens` and the task transitions to `Paused`.
   - Resuming the task (`/diverge resume` or setting `spec.suspended: false`) mints a fresh Macaroon capability token with the updated budget caveats.
 

@@ -67,8 +67,7 @@ helm upgrade --install diverge charts/diverge \
 ```
 
 :::tip
-**Built-in Kubernetes `pod` Sandbox Provider & Automatic Fallback**:
-On clusters without the external `extensions.agents.x-k8s.io` (`agent-sandbox`) CRD controller installed, you can set `--set sandbox.provider=pod` (or `spec.sandbox.provider: pod`) to provision hardened Kubernetes `Pod`s (`sb-pod-<task>`) with dropped capabilities, `runAsNonRoot: true`, `RuntimeDefault` seccomp, optional `divergedev.com/runtime-class` (`gvisor` / `kata`), `10Gi` workspace `emptyDir`, and mounted Macaroon tokens. Even when `provider: agent-sandbox` is selected, Diverge automatically falls back to the native `pod` provider if the `SandboxClaim` CRD is not registered on the cluster. For dry-run testing without creating pods, set `--set sandbox.provider=noop`.
+For dry-run testing without creating sandbox pods or requiring the upstream `agents.x-k8s.io` CRDs, set `--set sandbox.provider=noop`. Starting in `v0.15.0` (`divergedev/diverge#308`), you can also set `--set sandbox.provider=pod` (or rely on automatic fallback from `agent-sandbox`) to provision hardened native Kubernetes `Pod`s (`sb-pod-<task>`) without the external `SandboxClaim` CRD controller.
 :::
 
 ---

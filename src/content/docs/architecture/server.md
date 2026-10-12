@@ -18,7 +18,7 @@ The API is structured around several core services and endpoints:
 - **Cluster Service**: Provides cluster-level metadata and health information.
 - **Auth Service**: Handles authentication verification, OIDC browser login (`/auth/login`, `/auth/callback`), and identity endpoints.
 - **Remote MCP Endpoint (`/mcp`)**: Serves Model Context Protocol (MCP) JSON-RPC tools over HTTP for IDE and agent integrations.
-- **AgentTask Metering Endpoint (`POST /api/v1/agenttask/meter`)**: Receives live LLM token, USD cost, and iteration deltas from autonomous `AgentTask` sandboxes, enforces Macaroon `models`, `max_cost_usd`, and `max_tokens` caveats, and auto-pauses tasks (`429 Too Many Requests`) when budgets are exceeded.
+- **AgentTask Metering Endpoint (`POST /api/v1/agenttask/meter`)**: Receives live LLM `tokensUsed` and `costUSD` reports from autonomous `AgentTask` sandboxes, enforces Macaroon `allowed_models`, `max_cost_usd`, and `max_tokens` caveats as well as `budgetUSD` and `budgetTokens`, and auto-pauses tasks (`429 Too Many Requests`) when budgets are exceeded.
 
 ## Streaming Capabilities
 
