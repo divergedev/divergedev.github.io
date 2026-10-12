@@ -66,6 +66,13 @@ export default defineConfig({
           label: 'Guides',
           items: [
             {
+              label: 'AI & Agent Sandboxes',
+              items: [
+                { label: 'Autonomous Agent Sandboxes', slug: 'guides/agent-sandboxes' },
+                { label: 'MCP Server & IDEs', slug: 'guides/mcp-server' },
+              ],
+            },
+            {
               label: 'CI/CD',
               items: [
                 { label: 'GitHub Integration', slug: 'guides/github' },
@@ -81,6 +88,7 @@ export default defineConfig({
                 { label: 'DevSpace Integration', slug: 'guides/devspace' },
                 { label: 'Environment Export', slug: 'guides/env-export' },
                 { label: 'Preview Banner', slug: 'guides/preview-banner' },
+                { label: 'Troubleshooting', slug: 'guides/troubleshooting' },
               ],
             },
             {
@@ -96,9 +104,10 @@ export default defineConfig({
               ],
             },
             {
-              label: 'API',
+              label: 'API & Dashboard',
               items: [
                 { label: 'Server API', slug: 'guides/server' },
+                { label: 'Web Dashboard & OIDC', slug: 'guides/dashboard-and-oidc' },
               ],
             },
             {

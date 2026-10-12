@@ -78,10 +78,12 @@ To support dynamic subdomains without manual DNS or certificate management:
 | **Service Sharing (Deltas)** | Shared baseline with delta overrides | Shared baseline with delta overrides | Full duplication or cross-namespace mesh |
 | **Resource Efficiency** | Highest (only changed pods deploy) | Highest (only changed pods deploy) | Lower (deploys full stack per env) |
 
-## Diverge Proxy
+## Diverge Proxy & Activator Proxy
 
-Diverge includes a purpose-built proxy to enhance routing and visibility:
+Diverge includes purpose-built proxies to enhance L7 routing, cold-start wake-up, and security:
 - **Health Endpoints:** Uses `/-/healthz` and `/-/readyz` (avoiding `/healthz` to prevent upstream path shadowing). The readiness probe checks Kubernetes informer cache sync.
+- **Hide Environment List (`--hide-environment-list`):** On public or shared preview domains, pass `--hide-environment-list` to `diverge-proxy` (`true` by default in hardened deployments or configurable via proxy args) so unknown preview hostnames return a generic `404 Environment not found` response without enumerating active environment names.
+- **Wake-Up Splash Page (`--wake-splash`):** On `activator-proxy`, `--wake-splash` (`true` by default) returns a `202 Accepted` auto-refreshing HTML splash screen (`X-Diverge-Wake-Splash: true`) and readiness endpoint (`GET /-/wakeup-status?env=<env>`) when browsers access a scaled-to-zero preview environment.
 - **Graceful Shutdown:** Handles `SIGTERM` with a 10-second drain.
 - **Structured Logging:** Uses logr/zap for consistent and structured logs.
 - **CORS:** The CORS origin allowlist strictly validates against the preview domain.

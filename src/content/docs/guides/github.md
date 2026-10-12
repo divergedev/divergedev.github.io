@@ -44,6 +44,7 @@ Navigate to your GitHub repository or organization: **Settings → Webhooks → 
 
 Select **Let me select individual events**, and check:
 - ✅ **Pull requests** (covers `opened`, `synchronize`, `reopened`, `closed`)
+- ✅ **Issue comments** (`issue_comment` — required for interactive `/diverge` slash commands on Pull Requests)
 
 For PreviewGroups (multi-service), add a second webhook:
 
@@ -57,11 +58,31 @@ GitHub webhook payloads are validated using HMAC-SHA256 signature verification (
 
 ### Webhook Events Handled
 
-| PR Action | Diverge Behavior |
-|-----------|-----------------|
-| `opened`, `reopened` | Creates `Environment` / `PreviewGroup` CR |
-| `synchronize` (new push) | Updates the CR with new commit SHA |
-| `closed` | Deletes the CR (triggers teardown) |
+| Event / Action | Diverge Behavior |
+|----------------|-----------------|
+| `pull_request`: `opened`, `reopened` | Creates `Environment` / `PreviewGroup` CR |
+| `pull_request`: `synchronize` (new push) | Updates the CR with new commit SHA |
+| `pull_request`: `closed` | Deletes the CR (triggers teardown) |
+| `issue_comment`: `created` | Parses `/diverge` slash commands on PRs (`preview`, `fix`, `extend-ttl`, `teardown`, `pause`, `resume`) |
+
+---
+
+## 2a. PR Slash Commands
+
+When `Issue comments` (`issue_comment`) events are delivered to `/github-webhook`, authorized contributors can control preview environments and dispatch autonomous `AgentTask` sandboxes directly from Pull Request comments:
+
+| Slash Command | Action |
+|---------------|--------|
+| `/diverge preview` | Provisions or refreshes the `Environment` for the Pull Request (`pr-<number>`) |
+| `/diverge fix <objective>` | Spawns an autonomous `AgentTask` (`fix-pr-<number>`) with `spec.createPreview: true` and your custom objective (defaults to fixing PR issues) |
+| `/diverge extend-ttl [duration]` | Extends the preview environment TTL (e.g. `/diverge extend-ttl 4h`, defaults to `24h`) |
+| `/diverge teardown` | Immediately deletes the `Environment` (`pr-<number>`) and `PreviewGroup` (`mr-<number>`) for the PR |
+| `/diverge pause` | Suspends the active `AgentTask` (`fix-pr-<number>`) by setting `spec.suspended: true` and revoking its Macaroon token |
+| `/diverge resume` | Resumes a paused `AgentTask` (`fix-pr-<number>`) by setting `spec.suspended: false` and minting a fresh Macaroon token |
+
+:::caution[Collaborator Authorization]
+For security, Diverge verifies the commenter's `author_association` before executing any slash command. Only users with `OWNER`, `MEMBER`, or `COLLABORATOR` association on the repository are permitted to run `/diverge` commands; comments from untrusted external users on public repositories are ignored.
+:::
 
 ---
 
@@ -295,6 +316,7 @@ Standard GitHub Actions variables used in Diverge workflows:
 |---------|--------|--------|
 | Webhook authentication | HMAC-SHA256 | Token (constant-time) |
 | MR/PR comments | ✅ Sticky comments | ✅ Sticky notes |
+| Interactive slash commands | ✅ `issue_comment` (`/diverge ...`) | ✅ `Note Hook` (`/diverge ...`) |
 | Commit statuses | ✅ `diverge/preview` | ✅ `diverge/preview` |
 | PreviewGroup support | ✅ | ✅ |
 | Change detection (`diverge diff`) | ✅ | ✅ |
