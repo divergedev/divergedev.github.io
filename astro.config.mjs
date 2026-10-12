@@ -42,6 +42,8 @@ export default defineConfig({
           label: 'Getting Started',
           items: [
             { label: 'Why Diverge?', slug: 'guides/why-diverge' },
+            { label: 'Interactive Tour & Demo', slug: 'guides/interactive-tour' },
+            { label: 'Full-Stack Demo Monorepo', slug: 'guides/fullstack-demo' },
             { label: 'Quick Start', slug: 'getting-started/quickstart' },
             { label: 'Installation', slug: 'getting-started/installation' },
             { label: 'Configuration', slug: 'getting-started/configuration' },
