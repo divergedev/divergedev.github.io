@@ -25,13 +25,14 @@ helm install diverge oci://ghcr.io/divergedev/charts/diverge \
 
 ### Authentication
 
-The server supports a robust dual-authentication model:
-1. **OIDC (OpenID Connect)**: Validates standard JWTs against your identity provider.
+The server supports a composable triple-authentication model:
+1. **OIDC (OpenID Connect)**: Validates standard JWTs and browser SSO sessions against your identity provider.
 2. **Kubernetes TokenReview**: Validates Kubernetes ServiceAccount tokens.
+3. **Macaroon Capability Tokens (`DIVERGE_MACAROON_ROOT_KEY`)**: Authenticates autonomous `AgentTask` sandbox pods using attenuated HMAC-SHA256 Macaroons verified against the namespace-scoped `diverge-agenttask-tokens` index `Secret` and live `AgentTask` phase (`Active`).
 
 ### Authorization
 
-Authorization is handled via **namespace-scoped SubjectAccessReview**. The server delegates permission checks to the Kubernetes RBAC system, ensuring users only have access to namespaces where they have appropriate permissions.
+Authorization is handled via **namespace-scoped SubjectAccessReview** (or caveat enforcement for Macaroon capability tokens). The server delegates permission checks to the Kubernetes RBAC system, ensuring users and sandboxes only have access to namespaces and tools where they have appropriate permissions.
 
 ### Hardened Security Posture
 
@@ -45,6 +46,29 @@ The ConnectRPC API supports several advanced features for robustness and perform
 - **Pagination**: List endpoints support cursor-based pagination.
 - **Optimistic Concurrency**: Mutating endpoints support resource version checking to prevent lost updates.
 - **CORS**: Configurable Cross-Origin Resource Sharing for browser-based clients.
+- **Remote MCP Endpoint (`/mcp`)**: Exposes Diverge environment and `AgentTask` tools directly over HTTP JSON-RPC.
+- **Live AgentTask Metering (`POST /api/v1/agenttask/meter`)**: Tracks LLM token consumption, USD cost, and iterations in real time and automatically pauses tasks that exceed their budget.
+
+## Live AgentTask Metering (`POST /api/v1/agenttask/meter`)
+
+Autonomous coding agents running inside `AgentTask` sandboxes report LLM token and cost deltas after each model call to `POST /api/v1/agenttask/meter` authenticated with their Bearer Macaroon token:
+
+```bash
+curl -X POST https://diverge.example.com/api/v1/agenttask/meter \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $(cat /etc/diverge/token/token)" \
+  -d '{
+    "model": "claude-3-7-sonnet",
+    "tokensUsedDelta": 4200,
+    "costUSDDelta": "0.08",
+    "iterationDelta": 1
+  }'
+```
+
+The endpoint enforces:
+1. **Model Capability Check**: Rejects requests with `403 Forbidden` if `model` is not permitted by the Macaroon's `models` caveat.
+2. **Atomic Status Updates**: Increments `status.tokensUsed`, `status.estimatedCostUSD`, and `status.iterations` on the `AgentTask` using optimistic concurrency (`RetryOnConflict`).
+3. **Budget & Caveat Enforcement**: If the updated usage exceeds the Macaroon's `max_cost_usd` or `max_tokens` caveats or the `AgentTask` spec (`budgetUSD`, `budgetTokens`, `maxIterations`), the server immediately sets `spec.suspended = true` and `status.phase = Paused` (`Reason: BudgetExceeded`), marks the token revoked in `diverge-agenttask-tokens`, and returns `429 Too Many Requests` (`{"suspended": true}`).
 
 ## Example Usage
 

@@ -49,7 +49,7 @@ Navigate to **Settings → Webhooks → Add new webhook**:
 |---------|-------|
 | **URL** | `https://diverge.yourdomain.com/gitlab-webhook` |
 | **Secret token** | Your `DIVERGE_WEBHOOK_SECRET` value |
-| **Trigger** | ✅ Merge request events |
+| **Trigger** | ✅ Merge request events<br/>✅ Comments (`Note Hook` — required for interactive `/diverge` slash commands) |
 
 ### Multi-Service Environments (PreviewGroups)
 
@@ -67,11 +67,31 @@ Webhook authentication uses constant-time comparison of the `X-Gitlab-Token` hea
 
 ### Webhook Events Handled
 
-| MR Action | Diverge Behavior |
-|-----------|-----------------|
-| `open`, `reopen` | Creates `Environment` / `PreviewGroup` CR |
-| `update` (new push) | Updates the CR with new commit SHA |
-| `merge`, `close` | Deletes the CR (triggers teardown) |
+| Event / Action | Diverge Behavior |
+|----------------|-----------------|
+| `Merge Request Hook`: `open`, `reopen` | Creates `Environment` / `PreviewGroup` CR |
+| `Merge Request Hook`: `update` (new push) | Updates the CR with new commit SHA |
+| `Merge Request Hook`: `merge`, `close` | Deletes the CR (triggers teardown) |
+| `Note Hook` (on MergeRequest) | Parses `/diverge` slash commands on MRs (`preview`, `fix`, `extend-ttl`, `teardown`, `pause`, `resume`) |
+
+---
+
+## 2a. MR Slash Commands
+
+When **Comments** (`Note Hook`) events are enabled on `/gitlab-webhook`, developers can manage preview environments and trigger autonomous `AgentTask` sandboxes directly from Merge Request notes:
+
+| Slash Command | Action |
+|---------------|--------|
+| `/diverge preview` | Provisions or refreshes the `Environment` for the Merge Request (`mr-<iid>`) |
+| `/diverge fix <objective>` | Spawns an autonomous `AgentTask` (`fix-mr-<iid>`) with `spec.createPreview: true` and your custom objective |
+| `/diverge extend-ttl [duration]` | Extends the preview environment TTL (e.g. `/diverge extend-ttl 4h`, defaults to `24h`) |
+| `/diverge teardown` | Immediately deletes the `Environment` and `PreviewGroup` (`mr-<iid>`) for the MR |
+| `/diverge pause` | Suspends the active `AgentTask` (`fix-mr-<iid>`) by setting `spec.suspended: true` and revoking its Macaroon token |
+| `/diverge resume` | Resumes a paused `AgentTask` (`fix-mr-<iid>`) by setting `spec.suspended: false` and minting a fresh Macaroon token |
+
+:::caution[Collaborator Authorization]
+Slash commands are restricted to authorized project members (`OWNER`, `MEMBER`, or `COLLABORATOR` roles). Untrusted external notes are rejected before any Kubernetes resources are mutated.
+:::
 
 ---
 
@@ -326,6 +346,7 @@ Diverge uses standard GitLab CI variables in pipeline configurations:
 |---------|--------|--------|
 | Webhook authentication | HMAC-SHA256 | Token (constant-time) |
 | MR/PR comments | ✅ Sticky comments | ✅ Sticky notes |
+| Interactive slash commands | ✅ `issue_comment` (`/diverge ...`) | ✅ `Note Hook` (`/diverge ...`) |
 | Commit statuses | ✅ `diverge/preview` | ✅ `diverge/preview` |
 | PreviewGroup support | ✅ | ✅ |
 | Change detection (`diverge diff`) | ✅ | ✅ |

@@ -13,8 +13,8 @@ Effective observability is crucial for managing dynamic preview environments. Di
 
 ## Component Monitoring
 
-- **Controller**: Monitors API interactions, reconcile durations, and queue depth.
-- **Server**: Monitors RPC requests, latency, and error rates.
-- **Proxy**: Tracks routing decisions and connection states.
+- **Controller**: Monitors API interactions, reconcile durations, queue depth, async route lifecycle, and per-environment cost estimation (`diverge_environment_estimated_hourly_cost_usd` labeled by `environment` and `namespace`).
+- **Server**: Monitors RPC requests, latency, authentication attempts, and active streams.
+- **Proxy & Activator**: Tracks routing decisions, cold-start wake-up events, and last-traffic timestamps (`divergedev.com/last-traffic-at`) used by the controller to enforce idle hibernation (`divergedev.com/hibernate-after`).
 
-These metrics enable teams to build comprehensive Grafana dashboards and set up reliable alerting rules.
+These metrics enable teams to build comprehensive Grafana dashboards, attribute preview infrastructure spend per pull request, and set up reliable alerting rules.

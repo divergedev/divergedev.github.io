@@ -12,25 +12,27 @@ Diverge is an open-source environment-as-a-service engine for Kubernetes. It all
 ## Key Concepts
 
 - **Environment CRD:** Declarative Kubernetes resource defining a preview environment.
+- **Autonomous Agent Sandboxes (`AgentTask`):** Isolated Kubernetes sandboxes (`gvisor` / `kata` / `agent-sandbox`) with attenuated Macaroon capability tokens, automatic linked preview environments, and live LLM token/cost metering (`POST /api/v1/agenttask/meter`).
+- **Interactive PR/MR Slash Commands:** Trigger previews, extend TTLs, or dispatch autonomous AI fixes directly from GitHub/GitLab comments (`/diverge preview`, `/diverge fix`, `/diverge extend-ttl`, `/diverge teardown`, `/diverge pause`, `/diverge resume`).
 - **Delta Deployments:** Deploy only what has changed instead of an entire microservice stack.
-- **Routing Modes:** Uses header-based routing to share baseline environments.
-- **Security Hardened:** Finalizer-based teardown, RFC 7230 header validation, path traversal prevention, and constant-time secret comparison.
+- **Routing Modes:** Uses header-based or subdomain routing to share baseline environments.
+- **Security Hardened:** Macaroon capability tokens, finalizer-based teardown, RFC 7230 header validation, path traversal prevention, and constant-time secret comparison.
 
 ## Architecture
 
 ```text
-       [Developer] -- (Git Push) --> [GitHub/GitLab]
-                                           |
-                                      (Webhook)
-                                           v
-[Traffic] --> (Ingress/Gateway) --> [Diverge Controller]
-                     |                     |
+       [Developer / AI Agent] -- (Git Push / Slash Cmd / MCP) --> [GitHub/GitLab / Server]
+                                                                            |
+                                                                 (Webhook / ConnectRPC)
+                                                                            v
+[Traffic] --> (Ingress/Gateway) --> [Diverge Controller] -----> [AgentTask Sandbox]
+                     |                     |                     (Macaroon + Metering)
                      +-- (Header match)    +-- (Creates)
                      |                     v
                      v              [PreviewGroup] -> [Environments]
-             [Activator Proxy] 
+             [Activator Proxy]
                      |
-              (Wake & Route)
+        (Wake Splash & Route)
                      v
              [Preview Deployment] (Delta, scalable to 0)
 ```
@@ -45,17 +47,20 @@ Diverge is an open-source environment-as-a-service engine for Kubernetes. It all
 
 ## Quality
 
-Diverge is rigorously tested, featuring 147 tests across multiple packages to ensure robust preview environments, including Property-Based Testing (PBT) using the Hegel framework.
+Diverge is rigorously tested across packages to ensure robust preview environments, including Property-Based Testing (PBT) using the Hegel framework.
 
 ## Recently Shipped
 
-- **Knative Router** — Previews scale to zero and wake automatically on traffic via Activator Proxy
-- **SchemaProvider** — Automatically executes `CREATE SCHEMA IF NOT EXISTS` for seamless database isolation
-- **PreviewGroups** — Higher-level CRD to manage all changed services for a single MR
+- **Autonomous Agent Sandboxes (`AgentTask`)** — Isolated coding agent pods with Macaroon capability tokens, automatic linked preview environments (`spec.createPreview: true`), and live LLM cost/token metering (`POST /api/v1/agenttask/meter`)
+- **Interactive PR/MR Slash Commands** — Manage environments and trigger AI fixes via `/diverge preview`, `/diverge fix`, `/diverge extend-ttl`, `/diverge teardown`, `/diverge pause`, and `/diverge resume`
+- **Built-in MCP Server & Web Dashboard** — Both remote HTTP (`/mcp`) and CLI stdio (`diverge mcp`) MCP servers, plus an embedded React Web Dashboard with OIDC SSO
+- **Activator Wake-Up Splash Page & Idle Hibernation** — Browser-friendly `202 Accepted` auto-refreshing splash screen (`--wake-splash`) during cold starts, idle hibernation (`divergedev.com/hibernate-after`), and Prometheus preview cost estimation (`diverge_environment_estimated_hourly_cost_usd`)
+- **GitLab & GitHub Commit Statuses** — Automated `diverge/preview` merge gating across both GitHub and GitLab
+- **Knative & KEDA Scale-to-Zero** — Previews scale to zero and wake automatically on traffic via Activator Proxy
+- **SchemaProvider & Ariga Atlas** — Automated `CREATE SCHEMA IF NOT EXISTS` with per-schema roles and declarative/versioned Atlas migrations
+- **PreviewGroups** — Higher-level CRD to manage all changed services for a single MR/PR
 
 ## Roadmap (Coming Soon)
 
-- **GitLab Commit Statuses** — Update MR status with preview environment deploy state
-- **Multi-cluster support** — Deploy previews to remote clusters
-- **Argo Rollouts integration** — Extended progressive delivery features
-- **Preview environment metrics dashboard** — Visibility into cost savings and usage
+- **Multi-cluster support** — Deploy previews across federated remote clusters
+- **Argo Rollouts integration** — Extended progressive delivery and canary analysis features

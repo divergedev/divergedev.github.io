@@ -23,19 +23,21 @@ In this mode, Diverge provisions a new, isolated logical schema (or database) wi
 
 Diverge's `SchemaProvider` handles the full lifecycle:
 
-1. **Provision**: Creates a PostgreSQL schema with a sanitized name (format: `diverge_env_<name>`, validated against `^[a-z][a-z0-9_]{0,62}$`). A Kubernetes Secret containing the `DATABASE_URL` is created in the preview namespace.
+1. **Provision**:
+   - Creates an isolated PostgreSQL schema named `preview_<env>` (sanitized with hyphens converted to underscores, validated against `^[a-z][a-z0-9_]{0,62}$`) and an isolated per-schema role (`diverge_preview_<schema>`) whose `search_path` is scoped to `preview_<env>,public`.
+   - **Auto-Generated Connection Secret**: When `spec.database.connectionRef` is omitted in `schema` mode, the controller automatically creates (or updates) an owned Kubernetes `Secret` named `diverge-db-env-<env>-<hash8>` in the preview namespace containing `DATABASE_URL` (the schema-scoped connection string) and `DIVERGE_PREVIEW_SCHEMA` (`preview_<env>`), and sets `spec.database.connectionRef` to reference it so migration Jobs and application pods consume the isolated schema automatically.
 2. **SetupSQL via Kubernetes Job**: If `setupSQL` is defined in the database configuration, Diverge provisions an ephemeral Kubernetes Job running `psql` within the preview namespace to execute the initialization script:
    - Admin credentials are mounted securely via Secret reference (`DATABASE_URL`).
    - The initialization SQL is mounted via a dedicated ConfigMap.
    - The default container image is pinned by sha256 digest to `postgres:17-alpine` (configurable via Helm at `database.setupJob.image`).
    - Out-of-process execution ensures arbitrary SQL cannot compromise controller process memory or exhaust controller database pools.
-3. **Status**: Queries `information_schema.schemata` to verify the schema exists and monitors SetupSQL Job completion.
-4. **Teardown**: Drops the schema with `CASCADE` and deletes the associated Secret and Job resources.
+3. **Status**: Queries `information_schema.schemata` to verify the `preview_<env>` schema exists and monitors SetupSQL / migration Job completion.
+4. **Teardown**: Drops the `preview_<env>` schema with `CASCADE`, drops the `diverge_preview_<schema>` role, and deletes the associated `diverge-db-env-<env>-<hash8>` Secret and Job resources.
 
 :::tip
-Enable schema mode by setting `--database-provider=schema` on the controller. The provider connects to your existing PostgreSQL/AlloyDB cluster and manages schemas within it.
+Enable schema mode by setting `--database-provider=schema` on the controller. The provider connects to your existing PostgreSQL/AlloyDB cluster (or you can use `neon`, `cnpg`, or `cockroach` providers) and manages schemas within it.
 
-For automated schema lifecycle management, Diverge integrates with **Ariga Atlas** for versioned migrations and declarative schema synchronization. Learn more in the [Atlas Schema Management Guide](/guides/database-atlas).
+For automated schema lifecycle management, Diverge integrates with **Ariga Atlas** for versioned migrations and declarative schema synchronization. Learn more in the [Atlas Schema Management Guide](/guides/database-atlas/).
 :::
 
 ## 3. Snapshot Mode
