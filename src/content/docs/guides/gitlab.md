@@ -286,7 +286,7 @@ Configure these in **Settings → CI/CD → Variables** (provide either `KUBECON
 | Variable | Type | Masked | Description |
 |----------|------|--------|-------------|
 | `KUBECONFIG` | File | No | Raw multiline kubeconfig file (GitLab `File` variables cannot be masked because they contain newlines) |
-| `KUBECONFIG_CONTENT` | Variable | Yes | Single-line base64-encoded kubeconfig (`base64 -w0 ~/.kube/config`) |
+| `KUBECONFIG_CONTENT` | Variable | Yes | Single-line base64-encoded kubeconfig (`base64 < ~/.kube/config \| tr -d '\n'`) |
 | `DIVERGE_GITLAB_TOKEN` | Variable | Yes | GitLab API token with `api` scope (for custom sticky notes) |
 
 ---
