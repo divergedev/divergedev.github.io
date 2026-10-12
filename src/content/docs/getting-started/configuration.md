@@ -39,7 +39,7 @@ The Helm chart deploys the controller manager and optional components (`server`,
 |------|---------|-------------|
 | `--listen-addr` | `:8080` | Activator proxy HTTP listen address |
 | `--wake-timeout` | `60s` | Maximum time to wait for a scaled-to-zero pod to pass readiness probes |
-| `--wake-splash` | `true` | Serve an auto-refreshing `202 Accepted` HTML splash screen (`X-Diverge-Wake-Splash: true`) and `GET /-/wakeup-status` readiness endpoint to browsers while waking a scaled-to-zero preview environment |
+| `--wake-splash` | `false` | Serve an auto-refreshing `202 Accepted` HTML splash screen (also triggerable per request via `X-Diverge-Wake-Splash: true`) and `GET /-/wakeup-status` readiness endpoint to browsers while waking a scaled-to-zero preview environment |
 
 ## Controller Flags
 

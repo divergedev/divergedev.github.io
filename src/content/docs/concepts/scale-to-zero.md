@@ -36,11 +36,11 @@ The **Activator Proxy** (`activator-proxy`) is a specialized binary that sits in
 
 When a reviewer clicks a preview URL in a browser while the preview pod is scaled to zero, waiting several seconds on a blank loading spinner can feel broken.
 
-The `activator-proxy` supports an opt-in **Wake-Up Splash Page** (enabled by default with `--wake-splash=true`):
+The `activator-proxy` supports a configurable **Wake-Up Splash Page** (controlled globally via `--wake-splash`, default `false`, or per request via the `X-Diverge-Wake-Splash: true` header):
 
-1. **Browser Detection**: When all pods for the target preview environment are scaled to zero (`0` ready pods) and the incoming request is a browser navigation (`GET` or `HEAD` with `Accept: text/html`), `activator-proxy` triggers the background scale-up and immediately returns `202 Accepted` with header `X-Diverge-Wake-Splash: true`.
-2. **Auto-Refreshing Splash Screen**: The response renders a lightweight HTML page (*"Waking up preview environment `<env>`..."*) that polls `GET /-/wakeup-status?env=<env>` every 1.5 seconds (with a `<meta http-equiv="refresh" content="3">` fallback) and automatically reloads the page once the pod passes readiness probes.
-3. **Readiness Endpoint (`GET /-/wakeup-status`)**: Returns JSON `{"environment": "<env>", "ready": true|false, "readyPods": <count>}` so both the splash screen and external health checkers can inspect cold-start progress without triggering additional upstream proxies.
+1. **Browser Detection**: When all pods for the target preview environment are scaled to zero (`0` ready pods) and the incoming request is a browser navigation (`GET` or `HEAD` with `Accept: text/html`), `activator-proxy` triggers the background scale-up and immediately returns `202 Accepted` with `Retry-After: 2`.
+2. **Auto-Refreshing Splash Screen**: `GET` requests receive a lightweight HTML splash page (*"Waking up preview environment..."*) that polls `GET /-/wakeup-status` every 1.5 seconds and automatically reloads the page once the pod passes readiness probes, while `HEAD` requests receive only the status and headers with no body.
+3. **Readiness Endpoint (`GET /-/wakeup-status`)**: Returns JSON `{"ready": true|false}` so both the splash screen and external health checkers can inspect cold-start progress without triggering additional upstream proxies.
 4. **API & CLI Transparency**: Non-HTML requests (`POST`, `PUT`, `application/json`, gRPC, or `curl` without `Accept: text/html`) bypass the splash screen and block until the pod is ready before forwarding the request.
 
 ## Idle Hibernation Annotations

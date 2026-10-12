@@ -50,8 +50,8 @@ All MCP tools are named using the `diverge_<snake_case_method>` pattern derived 
 The MCP server enforces strict security boundaries:
 - **Exposed Services**: Only `EnvironmentService`, `PreviewGroupService`, and `AgentTask` helper operations are exposed.
 - **Excluded Services**: Sensitive internal services such as `AuthService`, `ClusterService`, and `TunnelService` are **never** exposed to AI agents over MCP.
-- **Safe by Default**: Destructive operations (`delete` / `cancel`) are disabled by default on `diverge mcp` and require explicit user opt-in via `--allow-destructive`.
-- **Macaroon Caveat Enforcement**: When an `AgentTask` calls `/mcp` using its Macaroon token, `diverge-server` enforces the token's `namespace` and `tools` caveats on every tool invocation.
+- **CLI Safe Mode (`--allow-destructive`)**: The CLI `diverge mcp` `stdio` server omits destructive tools (`diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_cancel_task`) by default unless `--allow-destructive` is explicitly passed.
+- **Remote Endpoint Authorization (`POST /mcp`)**: The remote `POST /mcp` endpoint exposes the registered toolset (including `diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_cancel_task`) and controls access via Kubernetes RBAC / `SubjectAccessReview` for human and `ServiceAccount` callers, or via the Macaroon token's `namespace` and `tools` caveats for `AgentTask` callers.
 
 ### Streaming RPC Handling
 
@@ -220,13 +220,14 @@ If your Diverge server is running behind a custom domain, set `DIVERGE_SERVER_UR
 
 ## 6. Destructive Operations
 
-By default, the Diverge MCP server operates in **safe mode**:
-- Destructive tools (`diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_cancel_task`) are **omitted** from the registered tool registry.
-- AI agents cannot accidentally delete active preview environments or tear down running PreviewGroups.
+By default, the CLI `diverge mcp` `stdio` server operates in **safe mode**:
+- Destructive tools (`diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_cancel_task`) are **omitted** from the CLI's registered tool registry.
+- AI assistants connected over `stdio` cannot accidentally delete active preview environments, tear down running `PreviewGroup`s, or cancel running `AgentTask`s unless `--allow-destructive` is set.
+- On the remote `POST /mcp` endpoint (`diverge-server`), `diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_cancel_task` are exposed and governed by the caller's authorization: Kubernetes RBAC / `SubjectAccessReview` for human and `ServiceAccount` callers, or the Macaroon capability token's `namespace` and `tools` caveats for `AgentTask` callers.
 
-### Enabling Destructive Tools
+### Enabling Destructive Tools on the CLI
 
-To allow your AI assistant to delete environments and preview groups, append the `--allow-destructive` flag:
+To allow your AI assistant to use `diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_cancel_task` over `diverge mcp`, append the `--allow-destructive` flag:
 
 ```json
 {
@@ -244,7 +245,7 @@ To allow your AI assistant to delete environments and preview groups, append the
 ```
 
 :::caution
-Enabling `--allow-destructive` allows the AI agent to initiate irreversible deletions and cleanup of Kubernetes preview namespaces and databases.
+Enabling `--allow-destructive` allows the AI agent to initiate irreversible deletions and cleanup of Kubernetes preview namespaces, databases, and `AgentTask` sandboxes.
 :::
 
 ---
