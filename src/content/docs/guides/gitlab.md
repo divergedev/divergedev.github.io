@@ -101,7 +101,7 @@ Slash commands are restricted to authorized project members (`OWNER`, `MEMBER`, 
 
 Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v1`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
 
-When `diverge_services` is left empty and `.diverge.yaml` is present in your repository, the component **automatically runs `diverge diff --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --output json`**, deploys a delta `PreviewGroup` (`mr-$CI_MERGE_REQUEST_IID`) for only the modified services, and exports a `preview.env` `dotenv` report artifact to downstream E2E test jobs:
+When `diverge_services` is left empty and `.diverge.yaml` is present in your repository, the component **automatically fetches the target branch, runs `diverge diff --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --output json`**, deploys a delta `PreviewGroup` (`mr-$CI_MERGE_REQUEST_IID`) for only the modified services, and exports a `preview.env` `dotenv` report artifact to downstream E2E test jobs:
 
 ```yaml
 include:
@@ -113,16 +113,19 @@ include:
 
 e2e_preview:
   stage: test
-  needs: ["diverge:preview"]
+  needs:
+    - job: diverge:preview
+      optional: true
   rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
   script:
-    - if [ "$DIVERGE_SKIPPED" = "true" ]; then echo "No services changed; skipping E2E."; exit 0; fi
-    - EXTRA_HTTP_HEADERS="$DIVERGE_ROUTING_HEADER_JSON" PREVIEW_URL="$DIVERGE_PREVIEW_URL" npx playwright test
+    - if [ "${DIVERGE_SKIPPED:-false}" = "true" ]; then echo "No services changed; skipping E2E."; exit 0; fi
+    - export EXTRA_HTTP_HEADERS="$(printf '%s' "$DIVERGE_ROUTING_HEADER_B64" | base64 -d)"
+    - PREVIEW_URL="$DIVERGE_PREVIEW_URL" npx playwright test
 ```
 
-:::tip[Direct File Include]
-If you are self-hosting or referencing the template directly from the repository, you can also include `ci/gitlab/.gitlab-ci-component.yml`. Both `diverge:preview` and `diverge:cleanup` (triggered automatically when `$CI_MERGE_REQUEST_EVENT_TYPE` is `merged` or `closed`) are registered out of the box.
+:::tip[Direct File Include & Environment Cleanup]
+If you are self-hosting or referencing the template directly from the repository, you can also include `ci/gitlab/.gitlab-ci-component.yml`. `diverge:preview` registers a dynamic GitLab Environment (`preview/mr-$CI_MERGE_REQUEST_IID`) wired with `on_stop: diverge:cleanup` and `auto_stop_in`, so GitLab automatically triggers `diverge:cleanup` when the Merge Request is merged, closed, or expires.
 :::
 
 #### Component Inputs
@@ -139,15 +142,17 @@ If you are self-hosting or referencing the template directly from the repository
 
 #### `preview.env` Dotenv Report Variables
 
-The `diverge:preview` job publishes `preview.env` via `artifacts.reports.dotenv`, making these environment variables automatically available in subsequent pipeline stages:
+The `diverge:preview` job publishes `preview.env` via `artifacts.reports.dotenv` using GitLab-compatible scalar values, making these environment variables automatically available in subsequent pipeline stages:
 
 | Variable | Example | Description |
 | :--- | :--- | :--- |
 | `DIVERGE_PREVIEW_NAME` | `mr-42` | Name of the applied `PreviewGroup` resource |
-| `DIVERGE_CHANGED_SERVICES` | `["checkout-api"]` | JSON array of changed services detected by `diverge diff` |
+| `DIVERGE_CHANGED_SERVICES_CSV` | `checkout-api,payments-worker` | Comma-separated list of changed services detected by `diverge diff` |
 | `DIVERGE_SKIPPED` | `false` | `"true"` when 0 services changed and preview creation was skipped |
+| `DIVERGE_HEADER_KEY` | `x-diverge-env` | HTTP routing header key |
+| `DIVERGE_HEADER_VALUE` | `mr-42` | HTTP routing header value |
 | `DIVERGE_ROUTING_HEADER` | `x-diverge-env: mr-42` | HTTP routing header string for `curl` / API tests |
-| `DIVERGE_ROUTING_HEADER_JSON` | `{"x-diverge-env":"mr-42"}` | JSON header object for Playwright / Cypress |
+| `DIVERGE_ROUTING_HEADER_B64` | `eyJ4LWRpdmVyZ2UtZW52IjoibXItNDIifQ==` | Base64-encoded JSON header object (`{"x-diverge-env":"mr-42"}`) for Playwright / Cypress |
 | `DIVERGE_PREVIEW_URL` | `https://staging.example.com/?_diverge_env=mr-42` | Shareable zero-extension browser preview URL |
 
 ---
@@ -276,11 +281,12 @@ The full pipeline example with all stages is available at [`examples/gitlab-ci/.
 
 ### CI/CD Variables Required
 
-Configure these in **Settings → CI/CD → Variables**:
+Configure these in **Settings → CI/CD → Variables** (provide either `KUBECONFIG` or `KUBECONFIG_CONTENT`):
 
 | Variable | Type | Masked | Description |
 |----------|------|--------|-------------|
-| `KUBECONFIG` or `KUBECONFIG_CONTENT` | File / Variable | Yes | Raw kubeconfig file or base64-encoded cluster credentials |
+| `KUBECONFIG` | File | No | Raw multiline kubeconfig file (GitLab `File` variables cannot be masked because they contain newlines) |
+| `KUBECONFIG_CONTENT` | Variable | Yes | Single-line base64-encoded kubeconfig (`base64 -w0 ~/.kube/config`) |
 | `DIVERGE_GITLAB_TOKEN` | Variable | Yes | GitLab API token with `api` scope (for custom sticky notes) |
 
 ---

@@ -90,7 +90,7 @@ For security, Diverge verifies the commenter's `author_association` before execu
 
 ### Turnkey Composite Action (`divergedev/diverge@v1` — Recommended)
 
-Use the official `divergedev/diverge@v1` composite GitHub Action to validate `.diverge.yaml`, run `diverge diff`, deploy a delta `PreviewGroup` for only modified microservices, and pass routing headers directly into Playwright or Cypress E2E tests:
+Use the official `divergedev/diverge@v1` composite GitHub Action (defined in the root [`action.yml`](https://github.com/divergedev/diverge/blob/main/action.yml) of `divergedev/diverge`) to validate `.diverge.yaml`, run `diverge diff`, deploy a delta `PreviewGroup` for only modified microservices, and pass routing headers directly into Playwright or Cypress E2E tests:
 
 ```yaml
 name: Diverge Preview Environment
@@ -109,7 +109,7 @@ permissions:
 
 jobs:
   preview:
-    if: github.event.action != 'closed'
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -126,6 +126,12 @@ jobs:
           base-url: https://staging.example.com
           wait: "true"
 
+      - name: Install Playwright Dependencies
+        if: steps.diverge.outputs.skipped != 'true'
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
       - name: Run Playwright E2E Against Preview
         if: steps.diverge.outputs.skipped != 'true'
         run: npx playwright test
@@ -135,7 +141,7 @@ jobs:
 
   cleanup:
     name: Teardown Preview Environment
-    if: github.event.action == 'closed'
+    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -143,6 +149,21 @@ jobs:
         with:
           action: teardown
           kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
+```
+
+In your `playwright.config.ts`, read `PREVIEW_URL` and `EXTRA_HTTP_HEADERS` so every browser request carries the preview routing header:
+
+```ts
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  use: {
+    baseURL: process.env.PREVIEW_URL || 'https://staging.example.com',
+    extraHTTPHeaders: process.env.EXTRA_HTTP_HEADERS
+      ? JSON.parse(process.env.EXTRA_HTTP_HEADERS)
+      : undefined,
+  },
+});
 ```
 
 #### `divergedev/diverge@v1` Inputs
@@ -158,7 +179,7 @@ jobs:
 | `base-ref` | `origin/<base_ref>` | Git base reference for `diverge diff` |
 | `services` | `""` | Explicit comma- or newline-separated service specs (overrides `diverge diff`) |
 | `image-registry` | `""` | Container registry prefix for changed service images (e.g. `ghcr.io/acme`) |
-| `image-tag` | `<preview-name>` | Image tag for changed services |
+| `image-tag` | `""` | Image tag for changed services (defaults to resolved `preview-name`) |
 | `header-key` | `x-diverge-env` | HTTP routing header key |
 | `header-value` | `<preview-name>` | HTTP routing header value |
 | `ttl` | `4h` | Preview environment time-to-live duration (e.g. `4h`, `24h`) |
