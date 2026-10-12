@@ -33,7 +33,8 @@ The `diverge` CLI manages your local development environments, scaffolds `.diver
 | `diverge preview watch <name>` | Watch a preview group until Ready/Failed |
 | `diverge providers list` | List all registered providers |
 | `diverge route <service>` | Simulate request routing to a service through the topology |
-| `diverge status` | Show active preview environments and groups |
+| `diverge schema` | Print the `.diverge.yaml` JSON Schema (generated from `diverge.config.v1.Config` proto) |
+| `diverge status [env-name]` | Show active preview environments and groups (without `<env-name>`, lists all environments in the namespace) |
 | `diverge validate` | Validate `.diverge.yaml` against JSON Schema or print the embedded schema (`--print-schema`) |
 | `diverge version` | Print version info |
 
@@ -87,6 +88,17 @@ diverge validate
 
 # Export JSON Schema for IDE autocompletion (VS Code / JetBrains / Neovim yaml-language-server)
 diverge validate --print-schema > .diverge.schema.json
+```
+
+### `diverge schema`
+
+Print the `.diverge.yaml` JSON Schema (generated directly from the `diverge.config.v1.Config` Protobuf descriptor) to stdout.
+
+**Usage:** `diverge schema`
+
+**Examples:**
+```bash
+diverge schema > schemas/diverge.schema.json
 ```
 
 ### `diverge completion`

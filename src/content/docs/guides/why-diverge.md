@@ -82,7 +82,7 @@ flowchart LR
 
 How much cloud compute does **Delta Deployment + Scale-to-Zero** save compared to cloning a full namespace per PR?
 
-Use the interactive calculator below. It uses the exact default rate card built into Diverge's Prometheus cost estimator (`diverge_environment_estimated_hourly_cost_usd`): **`$0.031611` per vCPU-hour** and **`$0.004237` per GiB-hour**, assuming a typical microservice replica footprint of **`0.5 vCPU` + `1 GiB RAM`** (`$0.0200425 / pod-hour` or `$14.63 / pod-month` across a `730`-hour month).
+Use the interactive calculator below. It uses the exact default rate card built into Diverge's Prometheus cost estimator (`diverge_environment_estimated_hourly_cost_usd` in `internal/metrics/cost.go`): **`$0.04` per vCPU-hour** and **`$0.004` per GiB-hour**, with the default per-service footprint of **`0.25 vCPU` + `0.5 GiB RAM`** (`$0.012 / pod-hour` or `$8.76 / pod-month` across a `730`-hour month).
 
 <div class="diverge-calc-card" id="diverge-cost-calculator">
   <div class="diverge-calc-header">
@@ -91,7 +91,7 @@ Use the interactive calculator below. It uses the exact default rate card built 
       <h3 class="diverge-calc-title">Preview Environment Cloud Cost &amp; Savings</h3>
     </div>
     <div class="diverge-calc-rate-pill">
-      Rate Card: <code>0.5 vCPU + 1 GiB</code> = <code>$0.02004/pod-hr</code>
+      Rate Card: <code>0.25 vCPU + 0.5 GiB</code> = <code>$0.012/pod-hr</code>
     </div>
   </div>
 
@@ -140,7 +140,7 @@ Use the interactive calculator below. It uses the exact default rate card built 
           <span class="diverge-result-name">Full Namespace Clone (Argo CD PR Gen)</span>
           <span class="diverge-result-sub" id="res-clone-pods">750 always-on preview pods</span>
         </div>
-        <div class="diverge-result-price" id="res-clone-cost">$10,973<span>/mo</span></div>
+        <div class="diverge-result-price" id="res-clone-cost">$6,570<span>/mo</span></div>
       </div>
 
       <div class="diverge-result-row diverge-result-delta">
@@ -148,7 +148,7 @@ Use the interactive calculator below. It uses the exact default rate card built 
           <span class="diverge-result-name">Diverge Delta Deploy (Always-On)</span>
           <span class="diverge-result-sub" id="res-delta-pods">60 delta pods (shared baseline)</span>
         </div>
-        <div class="diverge-result-price" id="res-delta-cost">$878<span>/mo</span></div>
+        <div class="diverge-result-price" id="res-delta-cost">$526<span>/mo</span></div>
       </div>
 
       <div class="diverge-result-row diverge-result-s2z">
@@ -156,19 +156,19 @@ Use the interactive calculator below. It uses the exact default rate card built 
           <span class="diverge-result-name">Diverge Delta + Scale-to-Zero</span>
           <span class="diverge-result-sub" id="res-s2z-pods">10.0 active pod-equivalents (hibernated 20h/day)</span>
         </div>
-        <div class="diverge-result-price diverge-price-accent" id="res-s2z-cost">$146<span>/mo</span></div>
+        <div class="diverge-result-price diverge-price-accent" id="res-s2z-cost">$88<span>/mo</span></div>
       </div>
 
       <div class="diverge-savings-banner">
         <div class="diverge-savings-main">
           <div>
             <div class="diverge-savings-label">Net Monthly Cloud Savings</div>
-            <div class="diverge-savings-value" id="res-monthly-savings">$10,827/mo</div>
+            <div class="diverge-savings-value" id="res-monthly-savings">$6,482/mo</div>
           </div>
           <div class="diverge-savings-pct" id="res-savings-pct">98.7% Saved</div>
         </div>
         <div class="diverge-savings-annual">
-          Projected Annual Compute Savings: <strong id="res-annual-savings">$129,924 / year</strong>
+          Projected Annual Compute Savings: <strong id="res-annual-savings">$77,789 / year</strong>
         </div>
       </div>
     </div>
@@ -412,9 +412,9 @@ Use the interactive calculator below. It uses the exact default rate card built 
 
 <script>
   (function () {
-    const CPU_HOURLY_RATE = 0.031611; // $/vCPU-hr
-    const MEM_HOURLY_RATE = 0.004237; // $/GiB-hr
-    const POD_HOURLY_RATE = 0.5 * CPU_HOURLY_RATE + 1.0 * MEM_HOURLY_RATE; // $0.0200425/hr
+    const CPU_HOURLY_RATE = 0.04; // $/vCPU-hr (DefaultCostRates().HourlyVCPUUSD)
+    const MEM_HOURLY_RATE = 0.004; // $/GiB-hr (DefaultCostRates().HourlyMemoryGiBUSD)
+    const POD_HOURLY_RATE = 0.25 * CPU_HOURLY_RATE + 0.5 * MEM_HOURLY_RATE; // $0.012/hr
     const HOURS_PER_MONTH = 730;
 
     const elServices = document.getElementById('calc-services');
@@ -492,13 +492,13 @@ Use the interactive calculator below. It uses the exact default rate card built 
 
 ### How the Cost Formulas Work
 
-Diverge's controller exposes a built-in Prometheus gauge (`diverge_environment_estimated_hourly_cost_usd`) using the standard on-demand Kubernetes compute rate card:
+Diverge's controller exposes a built-in Prometheus gauge (`diverge_environment_estimated_hourly_cost_usd` in `internal/metrics/cost.go`) using `DefaultCostRates()`:
 
-- **vCPU Hourly Rate**: `$0.031611 / vCPU-hr`
-- **Memory Hourly Rate**: `$0.004237 / GiB-hr`
-- **Per-Replica Hourly Rate (`0.5 vCPU + 1 GiB`)**:
+- **vCPU Hourly Rate**: `$0.04 / vCPU-hr` (`DefaultCostRates().HourlyVCPUUSD`)
+- **Memory Hourly Rate**: `$0.004 / GiB-hr` (`DefaultCostRates().HourlyMemoryGiBUSD`)
+- **Default Service Footprint (`0.25 vCPU + 0.5 GiB`)**:
   ```text
-  hourlyRate = (0.5 * $0.031611) + (1.0 * $0.004237) = $0.0200425 / hr ($14.631 / month)
+  hourlyRate = (0.25 * $0.04) + (0.5 * $0.004) = $0.012 / hr ($8.76 / month)
   ```
 
 For a team with `25` baseline microservices, `30` concurrent open PRs, an average of `2` modified services per PR, and `4` active testing hours per day (`730` hours/month):
@@ -506,17 +506,17 @@ For a team with `25` baseline microservices, `30` concurrent open PRs, an averag
 1. **Full Namespace Clone Monthly Cost**:
    ```text
    services * openPRs * 730h * hourlyRate
-   = 25 * 30 * 730 * $0.0200425 = $10,973.27 / month (750 pods)
+   = 25 * 30 * 730 * $0.012 = $6,570.00 / month (750 pods)
    ```
 2. **Diverge Delta Deploy Monthly Cost**:
    ```text
    modifiedServices * openPRs * 730h * hourlyRate
-   = 2 * 30 * 730 * $0.0200425 = $877.86 / month (60 pods — 92.0% reduction)
+   = 2 * 30 * 730 * $0.012 = $525.60 / month (60 pods — 92.0% reduction)
    ```
 3. **Diverge Delta + Scale-to-Zero Monthly Cost**:
    ```text
    modifiedServices * openPRs * (activeHours / 24) * 730h * hourlyRate
-   = 2 * 30 * (4 / 24) * 730 * $0.0200425 = $146.31 / month (10 active pod-equivalents — 98.7% reduction)
+   = 2 * 30 * (4 / 24) * 730 * $0.012 = $87.60 / month (10 active pod-equivalents — 98.7% reduction)
    ```
 
 ---
