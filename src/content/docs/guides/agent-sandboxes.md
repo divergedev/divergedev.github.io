@@ -67,7 +67,8 @@ helm upgrade --install diverge charts/diverge \
 ```
 
 :::tip
-For local Kind/k3d testing without the upstream `agents.x-k8s.io` CRDs installed, set `--set sandbox.provider=noop`.
+**Built-in Kubernetes `pod` Sandbox Provider & Automatic Fallback**:
+On clusters without the external `extensions.agents.x-k8s.io` (`agent-sandbox`) CRD controller installed, you can set `--set sandbox.provider=pod` (or `spec.sandbox.provider: pod`) to provision hardened Kubernetes `Pod`s (`sb-pod-<task>`) with dropped capabilities, `runAsNonRoot: true`, `RuntimeDefault` seccomp, optional `divergedev.com/runtime-class` (`gvisor` / `kata`), `10Gi` workspace `emptyDir`, and mounted Macaroon tokens. Even when `provider: agent-sandbox` is selected, Diverge automatically falls back to the native `pod` provider if the `SandboxClaim` CRD is not registered on the cluster. For dry-run testing without creating pods, set `--set sandbox.provider=noop`.
 :::
 
 ---
@@ -82,15 +83,15 @@ kind: AgentTask
 metadata:
   name: fix-checkout-latency
   namespace: default
+  annotations:
+    divergedev.com/preview-enabled: "true"
 spec:
   objective: "Diagnose and fix N+1 query in /api/v1/checkout and verify in a preview environment"
   draftPR: true
-  createPreview: true
   repository:
     url: https://github.com/myorg/checkout-service
     baseBranch: main
     workingBranch: fix/checkout-n-plus-1
-    mr: 42
   maxIterations: 8
   budgetUSD: "5.00"
   budgetTokens: 200000
@@ -99,8 +100,6 @@ spec:
     - gemini-2.5-pro
   sandbox:
     provider: agent-sandbox
-    templateName: default
-    serviceAccountName: default
     timeoutSeconds: 1800
 ```
 
@@ -108,7 +107,7 @@ spec:
 
 ## 4. Live LLM Metering (`POST /api/v1/agenttask/meter`)
 
-Inside the sandbox pod, the agent harness reports token usage, USD cost, and iteration increments after each LLM invocation:
+Inside the sandbox pod, the agent harness reports token usage and USD cost after each LLM invocation:
 
 ```bash
 curl -X POST "$DIVERGE_SERVER_URL/api/v1/agenttask/meter" \
@@ -116,15 +115,52 @@ curl -X POST "$DIVERGE_SERVER_URL/api/v1/agenttask/meter" \
   -H "Authorization: Bearer $(cat /etc/diverge/token/token)" \
   -d '{
     "model": "claude-3-7-sonnet",
-    "tokensUsedDelta": 3500,
-    "costUSDDelta": "0.06",
-    "iterationDelta": 1
+    "tokensUsed": 1500,
+    "costUSD": 0.0225
   }'
 ```
 
-- **`200 OK`**: Returns the updated `tokensUsed`, `estimatedCostUSD`, `iterations`, and `"suspended": false`.
-- **`403 Forbidden`**: Returned if `model` is not listed in the Macaroon's `models` caveat (`spec.capabilities`).
-- **`429 Too Many Requests`**: Returned when cumulative usage exceeds `max_cost_usd`, `max_tokens`, `budgetUSD`, `budgetTokens`, or `maxIterations`. The task is automatically suspended (`status.phase = Paused`, `Reason: BudgetExceeded`) and the Macaroon token is revoked in `diverge-agenttask-tokens`.
+### Node.js & Python SDK Metering Helpers
+
+Both `@divergedev/sdk` (Node.js) and `diverge-sdk` (Python) include built-in metering helpers that automatically read `DIVERGE_MACAROON_TOKEN` or `/etc/diverge/token/token`:
+
+```typescript
+// Node.js (@divergedev/sdk)
+import { meterLLMUsage, LLMMeterError } from '@divergedev/sdk';
+
+try {
+  const res = await meterLLMUsage({
+    model: 'claude-3-7-sonnet',
+    tokensUsed: 1500,
+    costUSD: 0.0225,
+  });
+} catch (err) {
+  if (err instanceof LLMMeterError && err.isBudgetExceeded) {
+    process.exit(0); // Task auto-paused by diverge-server
+  }
+  throw err;
+}
+```
+
+```python
+# Python (diverge-sdk)
+from diverge_sdk import meter_llm_usage, LLMMeterError
+
+try:
+    res = meter_llm_usage(
+        model="claude-3-7-sonnet",
+        tokens_used=1500,
+        cost_usd=0.0225,
+    )
+except LLMMeterError as err:
+    if err.is_budget_exceeded:
+        raise SystemExit(0)
+    raise
+```
+
+- **`200 OK`**: Returns `{"allowed": true, "suspended": false, "totalTokensUsed": 1500, "totalCostUSD": 0.0225}`.
+- **`403 Forbidden`**: Returned if `model` is omitted or not listed in the Macaroon's `allowed_models` caveat (`spec.capabilities`).
+- **`429 Too Many Requests`**: Returned when cumulative usage exceeds `max_cost_usd`, `max_tokens`, `budgetUSD`, or `budgetTokens`. The task is automatically suspended (`status.phase = Paused`, `spec.suspended = true`) and the Macaroon token is revoked in `diverge-agenttask-tokens`.
 
 ---
 
