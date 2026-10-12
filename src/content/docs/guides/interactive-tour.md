@@ -1437,8 +1437,10 @@ No issues found (0 critical, 0 warnings).</pre>
     let agentSpend = 1.25;
     let agentBudget = 5.0;
     let agentTokens = 42000;
+    let agentTokenLimit = 200000;
     let agentIter = 1;
     let agentSuspended = false;
+    let agentSuspendReason = '';
 
     const btnMeter = document.getElementById('dv-btn-meter-call');
     const btnResume = document.getElementById('dv-btn-agent-resume');
@@ -1452,7 +1454,10 @@ No issues found (0 critical, 0 warnings).</pre>
       const httpCode = document.getElementById('dv-s5-http-code');
       const consoleEl = document.getElementById('dv-s5-console');
 
-      const ratio = Math.min(1, agentSpend / agentBudget);
+      const ratio = Math.min(
+        1,
+        Math.max(agentSpend / agentBudget, agentTokens / agentTokenLimit)
+      );
       meterFill.style.transform = 'scaleX(' + ratio.toFixed(3) + ')';
       spendLabel.textContent =
         '$' +
@@ -1461,6 +1466,8 @@ No issues found (0 critical, 0 warnings).</pre>
         agentBudget.toFixed(2) +
         ' (' +
         agentTokens.toLocaleString('en-US') +
+        ' / ' +
+        agentTokenLimit.toLocaleString('en-US') +
         ' tokens)';
 
       if (customNote === 'disallowed_model') {
@@ -1482,6 +1489,13 @@ No issues found (0 critical, 0 warnings).</pre>
       }
 
       if (agentSuspended) {
+        const reasonText =
+          agentSuspendReason ||
+          'costUSD ($' +
+            agentSpend.toFixed(2) +
+            ') exceeded budgetUSD ($' +
+            agentBudget.toFixed(2) +
+            ')';
         phaseBadge.className = 'dv-badge dv-badge-red';
         phaseBadge.textContent = 'Phase: Paused (Reason: BudgetExceeded)';
         tokenBadge.textContent = 'Macaroon: REVOKED';
@@ -1500,11 +1514,9 @@ No issues found (0 critical, 0 warnings).</pre>
           '{\n' +
           '  "allowed": false,\n' +
           '  "suspended": true,\n' +
-          '  "reason": "costUSD ($' +
-          agentSpend.toFixed(2) +
-          ') exceeded budgetUSD ($' +
-          agentBudget.toFixed(2) +
-          ')",\n' +
+          '  "reason": "' +
+          reasonText +
+          '",\n' +
           '  "macaroonStatus": "revoked"\n' +
           '}';
       } else {
@@ -1552,6 +1564,20 @@ No issues found (0 critical, 0 warnings).</pre>
         agentIter += 1;
         if (agentSpend > agentBudget) {
           agentSuspended = true;
+          agentSuspendReason =
+            'costUSD ($' +
+            agentSpend.toFixed(2) +
+            ') exceeded budgetUSD ($' +
+            agentBudget.toFixed(2) +
+            ')';
+        } else if (agentTokens > agentTokenLimit) {
+          agentSuspended = true;
+          agentSuspendReason =
+            'tokensUsed (' +
+            agentTokens.toLocaleString('en-US') +
+            ') exceeded max_tokens (' +
+            agentTokenLimit.toLocaleString('en-US') +
+            ')';
         }
         renderAgentState();
       });
@@ -1560,7 +1586,9 @@ No issues found (0 critical, 0 warnings).</pre>
     if (btnResume) {
       btnResume.addEventListener('click', function () {
         agentBudget = +(agentBudget + 5.0).toFixed(2);
+        agentTokenLimit += 200000;
         agentSuspended = false;
+        agentSuspendReason = '';
         if (modelSelect) modelSelect.value = 'claude-3-7-sonnet';
         renderAgentState();
       });
@@ -1648,6 +1676,7 @@ No issues found (0 critical, 0 warnings).</pre>
           'Cluster returned to clean baseline: 3 baseline pods, 0 preview pods, 0 orphaned schemas ($0.00/hr).';
         clusterSummary.innerHTML =
           'Namespace: <code>demo-staging</code> · PR #42 Merged · 0 Preview Pods ($0.000/hr)';
+        setUrlMode('clear');
       });
     }
   })();
