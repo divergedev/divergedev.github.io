@@ -88,9 +88,9 @@ For security, Diverge verifies the commenter's `author_association` before execu
 
 ## 3. GitHub Actions Workflow
 
-Diverge provides a complete GitHub Actions workflow for automated preview environments. Add this to `.github/workflows/diverge-preview.yml`:
+### Turnkey Composite Action (`divergedev/diverge@v1` — Recommended)
 
-### Pipeline Overview
+Use the official `divergedev/diverge@v1` composite GitHub Action (defined in the root [`action.yml`](https://github.com/divergedev/diverge/blob/main/action.yml) of `divergedev/diverge`) to validate `.diverge.yaml`, run `diverge diff`, deploy a delta `PreviewGroup` for only modified microservices, and pass routing headers directly into Playwright or Cypress E2E tests:
 
 ```yaml
 name: Diverge Preview Environment
@@ -106,11 +106,109 @@ concurrency:
 permissions:
   contents: read
   pull-requests: write
+
+jobs:
+  preview:
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Deploy Diverge Delta Preview
+        id: diverge
+        uses: divergedev/diverge@v1
+        with:
+          action: deploy
+          kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
+          image-registry: ghcr.io/acme
+          base-url: https://staging.example.com
+          wait: "true"
+
+      - name: Install Playwright Dependencies
+        if: steps.diverge.outputs.skipped != 'true'
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Run Playwright E2E Against Preview
+        if: steps.diverge.outputs.skipped != 'true'
+        run: npx playwright test
+        env:
+          PREVIEW_URL: ${{ steps.diverge.outputs.preview-url }}
+          EXTRA_HTTP_HEADERS: ${{ steps.diverge.outputs.routing-header-json }}
+
+  cleanup:
+    name: Teardown Preview Environment
+    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: divergedev/diverge@v1
+        with:
+          action: teardown
+          kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
 ```
 
-### Change Detection
+In your `playwright.config.ts`, read `PREVIEW_URL` and `EXTRA_HTTP_HEADERS` so every browser request carries the preview routing header:
 
-Use `diverge diff` to detect which services changed based on git diff and `.diverge.yaml` path mappings:
+```ts
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  use: {
+    baseURL: process.env.PREVIEW_URL || 'https://staging.example.com',
+    extraHTTPHeaders: process.env.EXTRA_HTTP_HEADERS
+      ? JSON.parse(process.env.EXTRA_HTTP_HEADERS)
+      : undefined,
+  },
+});
+```
+
+#### `divergedev/diverge@v1` Inputs
+
+| Input | Default | Description |
+| :--- | :--- | :--- |
+| `action` | `deploy` | Action to execute: `validate`, `diff`, `deploy`, or `teardown` |
+| `version` | `latest` | Diverge CLI version to install (or `installed` to use pre-installed binary) |
+| `config` | `.diverge.yaml` | Path to `.diverge.yaml` configuration file |
+| `kubeconfig` | `""` | Raw or base64-encoded kubeconfig for the target Kubernetes cluster |
+| `namespace` | `default` | Default Kubernetes namespace for preview resources |
+| `preview-name` | `""` | Explicit `PreviewGroup` name override (defaults to `pr-<number>` or branch slug) |
+| `base-ref` | `origin/<base_ref>` | Git base reference for `diverge diff` |
+| `services` | `""` | Explicit comma- or newline-separated service specs (overrides `diverge diff`) |
+| `image-registry` | `""` | Container registry prefix for changed service images (e.g. `ghcr.io/acme`) |
+| `image-tag` | `""` | Image tag for changed services (defaults to resolved `preview-name`) |
+| `header-key` | `x-diverge-env` | HTTP routing header key |
+| `header-value` | `<preview-name>` | HTTP routing header value |
+| `ttl` | `4h` | Preview environment time-to-live duration (e.g. `4h`, `24h`) |
+| `base-url` | `""` | Optional staging/gateway base URL to construct a shareable `?_diverge_env=` preview URL |
+| `wait` | `false` | Wait for `PreviewGroup` `Ready` condition before completing |
+| `wait-timeout` | `180s` | Timeout when waiting for `PreviewGroup` readiness |
+| `dry-run` | `false` | Render `PreviewGroup` manifest without applying to Kubernetes |
+
+#### `divergedev/diverge@v1` Outputs
+
+| Output | Example | Description |
+| :--- | :--- | :--- |
+| `preview-name` | `pr-42` | Resolved `PreviewGroup` name |
+| `changed-services` | `["checkout-api"]` | JSON array of changed service names from `diverge diff` |
+| `changed-count` | `1` | Number of changed services detected |
+| `skipped` | `false` | `"true"` when deployment was skipped because 0 services changed |
+| `routing-header` | `x-diverge-env: pr-42` | HTTP routing header string for `curl` or API tests |
+| `routing-header-json` | `{"x-diverge-env":"pr-42"}` | JSON object of the routing header for Playwright `extraHTTPHeaders` or Cypress |
+| `preview-url` | `https://staging.example.com/?_diverge_env=pr-42` | Shareable zero-extension preview URL with `?_diverge_env=` query parameter |
+
+---
+
+### Manual CLI Workflow
+
+If you prefer calling the `diverge` CLI steps directly in `.github/workflows/diverge-preview.yml`:
+
+#### Change Detection (`diverge diff`)
+
+Use `diverge diff` to detect which services changed based on git diff and `.diverge.yaml` path mappings (using `.services` in the JSON output):
 
 ```yaml
 - name: Checkout repository
@@ -131,7 +229,7 @@ Use `diverge diff` to detect which services changed based on git diff and `.dive
     echo "changed_count=${COUNT}" >> $GITHUB_OUTPUT
 ```
 
-### Route Tracing
+#### Route Tracing
 
 Trace the ingress path for each changed service to understand request routing:
 
@@ -147,7 +245,7 @@ Trace the ingress path for each changed service to understand request routing:
     done
 ```
 
-### Deploy with Sticky PR Comment
+#### Deploy with Sticky PR Comment
 
 Create the preview environment and post a summary comment on the PR:
 
@@ -215,7 +313,7 @@ This workflow uses `pull_request` which does not grant write access for fork PRs
 For PRs with many comments, use `github.paginate` instead of `listComments` to ensure the marker is found beyond the first page of results.
 :::
 
-### Automatic Cleanup
+#### Automatic Cleanup
 
 Tear down environments when the PR is closed or merged:
 
@@ -237,7 +335,7 @@ The full workflow is available at [`examples/github-actions/diverge-preview.yml`
 
 ### The `setup-diverge` Action
 
-The [`divergedev/setup-diverge`](https://github.com/divergedev/setup-diverge) action handles CLI installation and caching automatically:
+The [`divergedev/setup-diverge`](https://github.com/divergedev/setup-diverge) action handles standalone CLI installation and caching automatically:
 
 ```yaml
 - uses: divergedev/setup-diverge@v1

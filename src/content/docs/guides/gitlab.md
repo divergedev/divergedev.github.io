@@ -97,9 +97,71 @@ Slash commands are restricted to authorized project members (`OWNER`, `MEMBER`, 
 
 ## 3. GitLab CI/CD Pipeline
 
-Diverge provides a complete CI pipeline example that mirrors the GitHub Actions workflow. Add this to your `.gitlab-ci.yml`:
+### Turnkey GitLab CI/CD Catalog Component (Recommended)
 
-### Pipeline Stages
+Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v1`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
+
+When `diverge_services` is left empty and `.diverge.yaml` is present in your repository, the component **automatically fetches the target branch, runs `diverge diff --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --output json`**, deploys a delta `PreviewGroup` (`mr-$CI_MERGE_REQUEST_IID`) for only the modified services, and exports a `preview.env` `dotenv` report artifact to downstream E2E test jobs:
+
+```yaml
+include:
+  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v1
+    inputs:
+      diverge_registry: "$CI_REGISTRY_IMAGE"
+      diverge_base_url: "https://staging.example.com"
+      diverge_ttl: "4h"
+
+e2e_preview:
+  stage: test
+  needs:
+    - job: diverge:preview
+      optional: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE != "merge_train"
+  script:
+    - if [ "${DIVERGE_SKIPPED:-false}" = "true" ]; then echo "No services changed; skipping E2E."; exit 0; fi
+    - export EXTRA_HTTP_HEADERS="$(printf '%s' "$DIVERGE_ROUTING_HEADER_B64" | base64 -d)"
+    - PREVIEW_URL="$DIVERGE_PREVIEW_URL" npx playwright test
+```
+
+:::tip[Direct File Include & Environment Cleanup]
+If you are self-hosting or referencing the template directly from the repository, you can also include `ci/gitlab/.gitlab-ci-component.yml`. `diverge:preview` registers a dynamic GitLab Environment (`preview/mr-$CI_MERGE_REQUEST_IID`) wired with `on_stop: diverge:cleanup` and `auto_stop_in`, so GitLab automatically triggers `diverge:cleanup` when the Merge Request is merged, closed, or expires.
+:::
+
+#### Component Inputs
+
+| Input | Default | Description |
+| :--- | :--- | :--- |
+| `diverge_services` | `""` | Comma-separated list of services to deploy (leave empty to auto-detect with `diverge diff` via `.diverge.yaml`) |
+| `diverge_header_key` | `x-diverge-env` | HTTP header key used to route preview traffic |
+| `diverge_ttl` | `4h` | TTL for preview environments (e.g. `4h`, `24h`) |
+| `diverge_registry` | `""` | Container registry prefix for preview images (defaults to `$CI_REGISTRY_IMAGE`) |
+| `diverge_namespace` | `default` | Default Kubernetes namespace for preview workloads |
+| `diverge_base_url` | `""` | Optional staging/gateway URL to construct a shareable `?_diverge_env=` preview URL |
+| `diverge_kubectl_version` | `v1.31.0` | Version of `kubectl` to install if not present in the runner image |
+
+#### `preview.env` Dotenv Report Variables
+
+The `diverge:preview` job publishes `preview.env` via `artifacts.reports.dotenv` using GitLab-compatible scalar values, making these environment variables automatically available in subsequent pipeline stages:
+
+| Variable | Example | Description |
+| :--- | :--- | :--- |
+| `DIVERGE_PREVIEW_NAME` | `mr-42` | Name of the applied `PreviewGroup` resource |
+| `DIVERGE_CHANGED_SERVICES_CSV` | `checkout-api,payments-worker` | Comma-separated list of changed services detected by `diverge diff` |
+| `DIVERGE_SKIPPED` | `false` | `"true"` when 0 services changed and preview creation was skipped |
+| `DIVERGE_HEADER_KEY` | `x-diverge-env` | HTTP routing header key |
+| `DIVERGE_HEADER_VALUE` | `mr-42` | HTTP routing header value |
+| `DIVERGE_ROUTING_HEADER` | `x-diverge-env: mr-42` | HTTP routing header string for `curl` / API tests |
+| `DIVERGE_ROUTING_HEADER_B64` | `eyJ4LWRpdmVyZ2UtZW52IjoibXItNDIifQ==` | Base64-encoded JSON header object (`{"x-diverge-env":"mr-42"}`) for Playwright / Cypress |
+| `DIVERGE_PREVIEW_URL` | `https://staging.example.com/?_diverge_env=mr-42` | Shareable zero-extension browser preview URL |
+
+---
+
+### Manual CLI Pipeline
+
+If you prefer writing custom jobs instead of using the CI/CD Component, add the following to your `.gitlab-ci.yml`:
+
+#### Pipeline Stages
 
 ```yaml
 stages:
@@ -119,7 +181,7 @@ default:
 
 To pin a specific version, replace `v0.8.2` with the desired tag. Use `latest` to always get the newest release.
 
-### Change Detection
+#### Change Detection
 
 Use `diverge diff` to detect which services changed based on git diff and `.diverge.yaml` path mappings:
 
@@ -141,7 +203,7 @@ analyze:
     - if: $CI_MERGE_REQUEST_IID
 ```
 
-### Deploy with Sticky MR Comment
+#### Deploy with Sticky MR Comment
 
 Create the preview environment and post a summary note on the Merge Request:
 
@@ -191,7 +253,7 @@ When accepting external contributions, restrict deployment jobs to protected bra
 For MRs with many comments, the Notes API returns paginated results. Add `per_page=100` and iterate pages if the marker is not found on the first page.
 :::
 
-### Automatic Cleanup
+#### Automatic Cleanup
 
 Tear down environments when the MR is merged or closed:
 
@@ -219,12 +281,13 @@ The full pipeline example with all stages is available at [`examples/gitlab-ci/.
 
 ### CI/CD Variables Required
 
-Configure these in **Settings → CI/CD → Variables**:
+Configure these in **Settings → CI/CD → Variables** (provide either `KUBECONFIG` or `KUBECONFIG_CONTENT`):
 
 | Variable | Type | Masked | Description |
 |----------|------|--------|-------------|
-| `KUBECONFIG` | File | No | Kubernetes cluster credentials |
-| `DIVERGE_GITLAB_TOKEN` | Variable | Yes | GitLab API token with `api` scope |
+| `KUBECONFIG` | File | No | Raw multiline kubeconfig file (GitLab `File` variables cannot be masked because they contain newlines) |
+| `KUBECONFIG_CONTENT` | Variable | Yes | Single-line base64-encoded kubeconfig (`base64 < ~/.kube/config \| tr -d '\n'`) |
+| `DIVERGE_GITLAB_TOKEN` | Variable | Yes | GitLab API token with `api` scope (for custom sticky notes) |
 
 ---
 

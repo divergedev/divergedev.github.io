@@ -3,11 +3,13 @@ title: Architecture Overview
 description: Overview of Diverge architecture and core components.
 ---
 
-Diverge is a Kubernetes-native engine that uses a single consolidated Docker image containing multiple binaries. 
+Diverge is a Kubernetes-native engine that uses a single consolidated Docker image containing multiple binaries.
+
+![Diverge End-to-End Architecture Overview](/images/architecture-overview.svg)
 
 ## Components
 
-1. **Controller**: The brain of Diverge. A standard Kubernetes operator that watches the `Environment` and `PreviewGroup` CRDs. It manages the lifecycle of preview environments, directly creates Argo CD `Application` CRs via Server-Side Apply, handles database provisioning, and ensures clean finalizer-based teardowns.
+1. **Controller**: The brain of Diverge. A standard Kubernetes operator that watches the `Environment`, `PreviewGroup`, and `AgentTask` CRDs. It manages the lifecycle of preview environments, directly creates Argo CD `Application` CRs via Server-Side Apply, handles database provisioning and autonomous sandboxes, and ensures clean finalizer-based teardowns.
 2. **Proxy**: A lightweight layer-7 router that intercepts traffic, inspects RFC 7230 compliant headers, and dynamically routes requests to either the preview namespace or the shared baseline.
 3. **Activator Proxy**: A specialized reverse proxy that sits in front of scaled-to-zero preview environments. It tracks ready pods via a shared informer, routes to active pods directly, and falls back to the Knative activator to wake up dormant environments on-demand.
 4. **Webhook Handler**: An HTTP server that securely processes incoming GitHub and GitLab webhooks, executing strict payload validation before triggering the controller.
