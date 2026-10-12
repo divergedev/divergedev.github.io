@@ -41,6 +41,7 @@ export default defineConfig({
         {
           label: 'Getting Started',
           items: [
+            { label: 'Why Diverge?', slug: 'guides/why-diverge' },
             { label: 'Quick Start', slug: 'getting-started/quickstart' },
             { label: 'Installation', slug: 'getting-started/installation' },
             { label: 'Configuration', slug: 'getting-started/configuration' },
