@@ -204,8 +204,9 @@ When resumed, `diverge-controller` mints a new Macaroon capability token reflect
   - `divergedev.com/sandbox-ip` on the linked `Environment` (propagating the live sandbox pod IP)
 
 ### Automatic PR / MR Status Comments (`SCMTaskNotifier`)
-When `notifierProvider` (`github` or `gitlab`) and supported runtime notifier wiring are enabled (note: `AgentTaskReconciler` does not currently receive a notifier by default), `SCMTaskNotifier` posts and idempotently updates a sticky comment (`<!-- diverge-agent-task -->`) on the associated Pull Request or Merge Request whenever the `AgentTask` transitions across `Active`, `Paused`, `Completed`, or `Failed` phases. The comment includes:
+When `notifierProvider` (`github` or `gitlab`) is configured on `diverge-controller` (along with the corresponding SCM credentials via `DIVERGE_NOTIFIER_TOKEN`, `GITHUB_TOKEN`, or `GITLAB_TOKEN`), `AgentTaskReconciler` automatically initializes an `SCMTaskNotifier` (`internal/notifier/task_notifier.go`) that posts and idempotently updates a sticky comment (`<!-- diverge-agent-task -->`) on the associated Pull Request or Merge Request whenever the `AgentTask` transitions across `Active`, `Paused`, `Completed`, or `Failed` phases. `/diverge fix` webhook handlers automatically attach `divergedev.com/provider`, `divergedev.com/project`, and `divergedev.com/pr-number` (or `divergedev.com/mr-iid`) annotations onto created `AgentTask` resources. The comment includes:
 - Current phase badge (`🟢 Completed`, `🟡 Paused`, `🔵 Active`, `🔴 Failed`)
 - Task objective and working branch
 - One-click **Magic Link** (`?_diverge_env=`) to open the agent's linked preview environment and an **Exit Preview** (`?_diverge_env=clear`) link
 - Live cumulative LLM token and USD spend (`status.tokensConsumed` / `status.costUSD`)
+
