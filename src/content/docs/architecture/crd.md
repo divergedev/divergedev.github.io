@@ -21,7 +21,7 @@ Configures how the environment is deployed.
 - **`mode`**: The deployment strategy. Valid enums: `delta` (deploy only changed services), `full` (deploy all services).
 - **`changedServices`**: A list of services that have been modified.
 - **`baselineRef`**: Reference to the baseline environment to share unchanged services with (used in `delta` mode).
-- **`namespaceLabels`**: Optional map of labels to apply to the preview namespace. Useful for enabling Istio Ambient mesh (`istio.io/dataplane-mode: ambient`). Labels prefixed with `diverge.io/` are protected and cannot be overridden.
+- **`namespaceLabels`**: Optional map of labels to apply to the preview namespace. Useful for enabling Istio Ambient mesh (`istio.io/dataplane-mode: ambient`). Labels prefixed with `divergedev.com/` are protected and cannot be overridden.
 
 ### `routing`
 Configures ingress and traffic routing.

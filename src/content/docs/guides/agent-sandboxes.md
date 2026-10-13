@@ -188,3 +188,24 @@ kubectl patch agenttask fix-checkout-latency --type=merge -p '{
 ```
 
 When resumed, `diverge-controller` mints a new Macaroon capability token reflecting the updated `budgetUSD` and `maxIterations` limits and clears the revocation marker in `diverge-agenttask-tokens`.
+
+---
+
+## 6. Linked Preview Annotations & Automatic PR / MR Status Comments (`SCMTaskNotifier`)
+
+### Linked Preview Annotations
+- **Input Annotations (on `AgentTask`)**:
+  - `divergedev.com/preview-enabled`: `"true"` or `"false"`
+  - `divergedev.com/preview-service`: Target Kubernetes service name (defaults to `<task.name>`)
+  - `divergedev.com/preview-image`: Container image for the linked preview `Environment`
+  - `divergedev.com/preview-port`: Container/service port exposed on the linked preview `Environment` (defaults to `80` or `8080`)
+- **Output Annotations**:
+  - `divergedev.com/preview-environment` and `divergedev.com/preview-url` on the `AgentTask`
+  - `divergedev.com/sandbox-ip` on the linked `Environment` (propagating the live sandbox pod IP)
+
+### Automatic PR / MR Status Comments (`SCMTaskNotifier`)
+When `notifierProvider` (`github` or `gitlab`) and supported runtime notifier wiring are enabled (note: `AgentTaskReconciler` does not currently receive a notifier by default), `SCMTaskNotifier` posts and idempotently updates a sticky comment (`<!-- diverge-agent-task -->`) on the associated Pull Request or Merge Request whenever the `AgentTask` transitions across `Active`, `Paused`, `Completed`, or `Failed` phases. The comment includes:
+- Current phase badge (`🟢 Completed`, `🟡 Paused`, `🔵 Active`, `🔴 Failed`)
+- Task objective and working branch
+- One-click **Magic Link** (`?_diverge_env=`) to open the agent's linked preview environment and an **Exit Preview** (`?_diverge_env=clear`) link
+- Live cumulative LLM token and USD spend (`status.tokensConsumed` / `status.costUSD`)

@@ -134,6 +134,7 @@ The MCP server provides the following tools grouped by service:
 | `diverge_fetch_errors` | Retrieve the last error-level (`ERROR`, `FATAL`, `panic`) log lines from an environment to diagnose failures. |
 | `diverge_doctor` | Run cluster and environment health checks (GatewayClass, CRDs, RBAC, database connectivity). |
 | `diverge_loadtest` | Run a bounded HTTP/gRPC load test against a preview environment and return latency/error percentiles. |
+| `diverge_visual_test` | Compare baseline and preview PNG screenshots (`baseline_path`/`preview_path` or batch `baseline_dir`/`preview_dir`) and return pixel-diff pass/fail metrics (writing diff PNGs when `diff_output_path` is set and diff data exists). |
 
 ### Autonomous AgentTask Tools
 
@@ -267,3 +268,12 @@ Enabling `--allow-destructive` allows the AI agent to initiate irreversible dele
 | `-n`, `--namespace` | `string` | `""` | Kubernetes namespace (defaults to active kubeconfig context). |
 | `--context` | `string` | `""` | Kubernetes context name. |
 | `--no-color` | `bool` | `false` | Disable ANSI color formatting. |
+
+---
+
+## 8. Official AI Coding Agent Skill & Cursor Rules
+
+Diverge ships ready-to-use agent instructions in the repository so Claude Code, Cursor, Windsurf, and Copilot automatically follow the **diff → deploy → wait → verify → diagnose** preview loop:
+
+- **Agent Skill ([`skills/diverge/SKILL.md`](https://github.com/divergedev/diverge/blob/main/skills/diverge/SKILL.md))**: Install into `~/.claude/skills/diverge/SKILL.md` or `.agents/skills/diverge/SKILL.md`.
+- **Cursor Rules ([`.cursor/rules/diverge.mdc`](https://github.com/divergedev/diverge/blob/main/.cursor/rules/diverge.mdc))**: Automatically loaded by Cursor when working in repositories configured with `.diverge.yaml`.

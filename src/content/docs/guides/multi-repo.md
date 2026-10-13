@@ -37,15 +37,23 @@ Only the changed service gets a preview pod. The service mesh handles routing â€
 Each service repo contains a `.diverge.yaml` that configures preview behavior:
 
 ```yaml
-apiVersion: diverge.io/v1alpha1
-kind: ServicePreview
-metadata:
-  name: payments-api
-spec:
-  namespace: app-billing
-  serviceName: payments-api
-  port: 8080
+# yaml-language-server: $schema=https://divergedev.com/schemas/diverge.schema.json
+version: "1"
+
+services:
+  payments-api:
+    paths:
+      - "**"
+    image:
+      repository: ghcr.io/divergedev/demo-payments-api
+      tagTemplate: "pr-{{.MR}}"
+
+defaults:
+  deploy:
+    mode: delta
+    namespace: same
   routing:
+    mode: header
     headerKey: x-preview-id
 ```
 

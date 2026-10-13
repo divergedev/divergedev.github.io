@@ -59,7 +59,7 @@ environments:
 You can also specify or override banner settings directly on the `Environment` custom resource:
 
 ```yaml
-apiVersion: diverge.io/v1alpha1
+apiVersion: divergedev.com/v1alpha1
 kind: Environment
 metadata:
   name: pr-42
@@ -83,3 +83,15 @@ defaults:
       enabled: false
 ```
 
+---
+
+## In-Browser Floating DevToolbar (`<diverge-toolbar>`)
+
+When traffic is routed through `diverge-proxy`, Diverge injects a Shadow DOM-isolated floating toolbar (`<script src="/-/toolbar.js" defer></script>`) before `</body>` on eligible `text/html` responses (excluding responses where toolbar injection is disabled, the body is encoded or exceeds the inspection limit, or no closing `</body>` tag is present):
+
+- **Active Environment Pill**: Displays the currently active preview environment (`diverge_env` cookie, subdomain, or header) or `baseline`.
+- **Environment Switcher Dropdown**: Populated dynamically from `GET /-/api/context`, allowing 1-click switching between preview environments visible in the proxy's configured Kubernetes namespace.
+- **Copy Magic Link (`?_diverge_env=<env>`)**: Copies a shareable URL that sets the `diverge_env` cookie automatically for PMs, designers, or QA reviewers.
+- **Reset to Baseline**: Navigates to `?_diverge_env=clear` (or `?_diverge_env=reset`) to expire the preview cookie and return to baseline traffic.
+
+To skip `<diverge-toolbar>` injection on a specific request (for example during automated screenshot capture), pass the `X-Diverge-Toolbar: off` request header.

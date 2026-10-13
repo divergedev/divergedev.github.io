@@ -50,7 +50,7 @@ Enable subdomain routing by setting `mode: subdomain` and defining the target do
 
 ```yaml
 # Environment CRD or .diverge.yaml
-apiVersion: diverge.io/v1alpha1
+apiVersion: divergedev.com/v1alpha1
 kind: Environment
 metadata:
   name: pr-123
