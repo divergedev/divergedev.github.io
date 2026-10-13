@@ -124,14 +124,14 @@ By default, Diverge uses the `configmap` provider. When an environment `pr-42` i
 ## Remote Enterprise Providers (`flipt`, `flagsmith`, `unleash`)
 
 All remote providers support 4-tier credential resolution:
-1. `spec.features.connectionRef` Secret in the `Environment`'s namespace
-2. `spec.features.connectionRef` Secret in `diverge-system`
+1. `features.connection_ref` Secret in the `Environment`'s namespace
+2. `features.connection_ref` Secret in `diverge-system`
 3. Default Secret names (`<provider>-connection` or `<provider>-credentials`) in `env.Namespace` or `diverge-system`
 4. Controller environment variables (`DIVERGE_<PROVIDER>_*`)
 
 ### Unleash (`features.provider: unleash`)
 
-When `provider: unleash` is configured, Diverge ensures each overridden feature toggle exists in your Unleash project and upserts a preview-scoped `flexibleRollout` strategy (`diverge-[<ns>-]<env>-<hash8>`) constrained to `diverge.environment IN [<envName>]`. String/variant overrides attach a strategy-level variant (`weight: 1000`). On environment teardown, all preview strategies matching the environment's strategy title are deleted automatically.
+When `provider: unleash` is configured, Diverge ensures each overridden feature toggle exists and is enabled in your target Unleash project/environment, and upserts a preview-scoped `flexibleRollout` strategy (`diverge-[<ns>-]<env>-<hash8>`, `sortOrder: 0`) constrained to `diverge.environment IN [<envName>]`. Boolean `"false"` overrides also attach a `diverge.environment NOT_IN [<envName>]` exclusion constraint to other strategies on that feature so broader strategies cannot enable the flag in the preview environment. String/variant overrides attach a strategy-level variant (`weight: 1000`). When overrides are removed or the environment is torn down, all preview strategies and exclusion constraints for the environment are deleted automatically.
 
 ```yaml
 apiVersion: v1
@@ -148,7 +148,7 @@ stringData:
   environment: "development"
 ```
 
-Injected workload environment variables: `UNLEASH_URL`, `UNLEASH_API_TOKEN`, `UNLEASH_PROJECT`, `UNLEASH_ENVIRONMENT`, `UNLEASH_STRATEGY_TITLE`, `OPENFEATURE_UNLEASH_URL`, `OPENFEATURE_UNLEASH_API_TOKEN`, and `OPENFEATURE_TARGET_KEY`.
+Injected workload environment variables: `UNLEASH_URL`, `UNLEASH_API_TOKEN` (populated from `clientToken`; `adminToken` is never sent to preview workloads), `UNLEASH_PROJECT`, `UNLEASH_ENVIRONMENT`, `UNLEASH_STRATEGY_TITLE`, `OPENFEATURE_UNLEASH_URL`, `OPENFEATURE_UNLEASH_API_TOKEN`, and `OPENFEATURE_TARGET_KEY`.
 
 ---
 
