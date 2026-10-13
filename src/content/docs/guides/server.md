@@ -47,11 +47,11 @@ The ConnectRPC API supports several advanced features for robustness and perform
 - **Optimistic Concurrency**: Mutating endpoints support resource version checking to prevent lost updates.
 - **CORS**: Configurable Cross-Origin Resource Sharing for browser-based clients.
 - **Remote MCP Endpoint (`/mcp`)**: Exposes Diverge environment and `AgentTask` tools directly over HTTP JSON-RPC.
-- **Live AgentTask Metering (`POST /api/v1/agenttask/meter`)**: Tracks LLM token consumption, USD cost, and iterations in real time and automatically pauses tasks that exceed their budget.
+- **Live AgentTask Metering (`POST /api/v1/agenttask/meter`)**: Tracks LLM token consumption and USD cost in real time and automatically pauses tasks that exceed their budget.
 
 ## Live AgentTask Metering (`POST /api/v1/agenttask/meter`)
 
-Autonomous coding agents running inside `AgentTask` sandboxes report LLM token and cost deltas after each model call to `POST /api/v1/agenttask/meter` authenticated with their Bearer Macaroon token:
+Autonomous coding agents running inside `AgentTask` sandboxes report LLM token and cost usage after each model call to `POST /api/v1/agenttask/meter` authenticated with their Bearer Macaroon token:
 
 ```bash
 curl -X POST https://diverge.example.com/api/v1/agenttask/meter \
@@ -59,16 +59,15 @@ curl -X POST https://diverge.example.com/api/v1/agenttask/meter \
   -H "Authorization: Bearer $(cat /etc/diverge/token/token)" \
   -d '{
     "model": "claude-3-7-sonnet",
-    "tokensUsedDelta": 4200,
-    "costUSDDelta": "0.08",
-    "iterationDelta": 1
+    "tokensUsed": 1500,
+    "costUSD": 0.0225
   }'
 ```
 
-The endpoint enforces:
-1. **Model Capability Check**: Rejects requests with `403 Forbidden` if `model` is not permitted by the Macaroon's `models` caveat.
-2. **Atomic Status Updates**: Increments `status.tokensUsed`, `status.estimatedCostUSD`, and `status.iterations` on the `AgentTask` using optimistic concurrency (`RetryOnConflict`).
-3. **Budget & Caveat Enforcement**: If the updated usage exceeds the Macaroon's `max_cost_usd` or `max_tokens` caveats or the `AgentTask` spec (`budgetUSD`, `budgetTokens`, `maxIterations`), the server immediately sets `spec.suspended = true` and `status.phase = Paused` (`Reason: BudgetExceeded`), marks the token revoked in `diverge-agenttask-tokens`, and returns `429 Too Many Requests` (`{"suspended": true}`).
+The endpoint returns `{"allowed": true, "suspended": false, "totalTokensUsed": 1500, "totalCostUSD": 0.0225}` on `200 OK` and enforces:
+1. **Model Capability Check**: Rejects requests with `403 Forbidden` if `model` is omitted or not permitted by the Macaroon's `allowed_models` caveat (`spec.capabilities`).
+2. **Atomic Status Updates**: Increments `status.tokensConsumed` and `status.costUSD` on the `AgentTask` using optimistic concurrency (`RetryOnConflict`).
+3. **Budget & Caveat Enforcement**: If the updated cumulative usage exceeds the Macaroon's `max_cost_usd` or `max_tokens` caveats or the `AgentTask` spec (`budgetUSD`, `budgetTokens`), the server immediately sets `spec.suspended = true` and `status.phase = Paused` (`Reason: BudgetExceeded`), marks the token revoked in `diverge-agenttask-tokens`, and returns `429 Too Many Requests` (`{"allowed": false, "suspended": true, "reason": "budget exceeded", "totalTokensUsed": ..., "totalCostUSD": ...}`).
 
 ## Example Usage
 
