@@ -176,10 +176,10 @@ variables:
 
 # All jobs needing the CLI use this image (git, curl, jq included)
 default:
-  image: ghcr.io/divergedev/diverge-cli:v0.14.0
+  image: ghcr.io/divergedev/diverge-cli:v0.15.0
 ```
 
-To pin a specific version, replace `v0.14.0` with the desired tag. Use `latest` to always get the newest release.
+To pin a specific version, replace `v0.15.0` with the desired tag. Use `latest` to always get the newest release.
 
 #### Change Detection
 
