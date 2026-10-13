@@ -39,7 +39,7 @@ Or via CLI flags on `diverge-controller`:
 #### 2. Define the CRD Async Route
 
 ```yaml
-apiVersion: diverge.io/v1alpha1
+apiVersion: divergedev.com/v1alpha1
 kind: Environment
 metadata:
   name: pr-456
@@ -76,7 +76,7 @@ Or via CLI flags on `diverge-controller`:
 #### 2. Define the CRD Async Route
 
 ```yaml
-apiVersion: diverge.io/v1alpha1
+apiVersion: divergedev.com/v1alpha1
 kind: Environment
 metadata:
   name: pr-456
@@ -143,7 +143,7 @@ Your webhook server must handle `POST` requests for `provision` and `teardown` a
 #### 3. Define the CRD Async Route
 
 ```yaml
-apiVersion: diverge.io/v1alpha1
+apiVersion: divergedev.com/v1alpha1
 kind: Environment
 metadata:
   name: pr-456
