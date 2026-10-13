@@ -25,14 +25,11 @@ When a browser requests this URL, `diverge-proxy`:
 
 ### Opening a Magic Link from the CLI
 
-Use `diverge open --magic` to launch (or print) the Magic Link for any `Environment` or `PreviewGroup`:
+Use `diverge open --magic` to launch the Magic Link for any `Environment`:
 
 ```bash
 # Open the Magic Link in your default browser
 diverge open pr-42 --magic
-
-# Print the Magic Link without opening a browser
-diverge open pr-42 --magic --no-browser
 ```
 
 ---
@@ -62,12 +59,12 @@ On every incoming request, `diverge-proxy` resolves the target preview environme
 
 ## 4. In-Browser Floating DevToolbar (`<diverge-toolbar>`)
 
-When `diverge-proxy` serves an HTML response (`Content-Type: text/html`), it automatically injects `<script src="/-/toolbar.js" defer></script>` right before `</body>`.
+When `diverge-proxy` serves an eligible HTML response (`Content-Type: text/html`, excluding responses where toolbar injection is disabled, the body is encoded or exceeds the inspection limit, or no closing `</body>` tag is present), it injects `<script src="/-/toolbar.js" defer></script>` right before `</body>`.
 
 The script mounts a zero-dependency **Shadow DOM Web Component (`<diverge-toolbar>`)** in the bottom-right corner of the viewport that queries `GET /-/api/context` and provides:
 
 - **Active Environment Indicator**: Shows which preview environment is currently active (or `baseline`).
-- **Live Environment Switcher**: Dropdown populated with all active preview environments in the cluster for 1-click switching.
+- **Live Environment Switcher**: Dropdown populated with preview environments visible in the proxy's configured Kubernetes namespace for 1-click switching.
 - **Copy Magic Link**: Copies the shareable `?_diverge_env=<active>` URL to the clipboard.
 - **Reset to Baseline**: Clears the `diverge_env` cookie in one click.
 
