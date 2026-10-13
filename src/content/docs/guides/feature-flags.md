@@ -88,10 +88,10 @@ label_overrides:
 | Provider | Description | Infrastructure Required |
 | :--- | :--- | :--- |
 | `configmap` *(default)* | Generates a Kubernetes ConfigMap formatted for flagd / in-process JSON evaluation. | **Zero** — entirely Kubernetes-native. |
-| `noop` | Disables feature flag provisioning. | None. |
-| `flipt` | Manages ephemeral rules in an external Flipt instance. | Flipt server. |
-| `flagsmith` | Manages environment flags and segment traits in Flagsmith. | Flagsmith server or cloud. |
-| `unleash` | Scopes feature toggles in Unleash. | Unleash server. |
+| `noop` / `none` | Disables feature flag provisioning. | None. |
+| `flipt` | Provisions an ephemeral namespace (`diverge-<envName>`) and targeting rules in [Flipt](https://flipt.io). | Flipt server. |
+| `flagsmith` | Provisions an ephemeral identity (`diverge-[<ns>-]<env>-<hash8>`) and traits in [Flagsmith](https://www.flagsmith.com). | Flagsmith server or cloud. |
+| `unleash` | Provisions context-constrained `flexibleRollout` strategies (`diverge.environment IN [<env>]`) and strategy-level variants in [Unleash](https://www.getunleash.io). | Unleash server or Enterprise. |
 
 ---
 
@@ -118,6 +118,37 @@ By default, Diverge uses the `configmap` provider. When an environment `pr-42` i
 ```
 
 3. The ConfigMap is linked to the `Environment` via Kubernetes Owner References, ensuring automatic garbage collection when the preview environment is torn down.
+
+---
+
+## Remote Enterprise Providers (`flipt`, `flagsmith`, `unleash`)
+
+All remote providers support 4-tier credential resolution:
+1. `features.connection_ref` Secret in the `Environment`'s namespace
+2. `features.connection_ref` Secret in `diverge-system`
+3. Default Secret names (`<provider>-connection` or `<provider>-credentials`) in `env.Namespace` or `diverge-system`
+4. Controller environment variables (`DIVERGE_<PROVIDER>_*`)
+
+### Unleash (`features.provider: unleash`)
+
+When `provider: unleash` is configured, Diverge ensures each overridden feature toggle exists and is enabled in your target Unleash project/environment, and upserts a preview-scoped `flexibleRollout` strategy (`diverge-[<ns>-]<env>-<hash8>`, `sortOrder: 0`) constrained to `diverge.environment IN [<envName>]`. Boolean `"false"` overrides also attach a `diverge.environment NOT_IN [<envName>]` exclusion constraint to other strategies on that feature so broader strategies cannot enable the flag in the preview environment. String/variant overrides attach a strategy-level variant (`weight: 1000`). When overrides are removed or the environment is torn down, all preview strategies and exclusion constraints for the environment are deleted automatically.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: unleash-credentials
+  namespace: diverge-system
+type: Opaque
+stringData:
+  url: "https://unleash.internal.example.com"
+  adminToken: "*:*.unleash_admin_token..."
+  clientToken: "default:development.unleash_client_token..."
+  project: "default"
+  environment: "development"
+```
+
+Injected workload environment variables: `UNLEASH_URL`, `UNLEASH_API_TOKEN` (populated from `clientToken`; `adminToken` is never sent to preview workloads), `UNLEASH_PROJECT`, `UNLEASH_ENVIRONMENT`, `UNLEASH_STRATEGY_TITLE`, `OPENFEATURE_UNLEASH_URL`, `OPENFEATURE_UNLEASH_API_TOKEN`, and `OPENFEATURE_TARGET_KEY`.
 
 ---
 
@@ -179,6 +210,9 @@ $ diverge providers list
 --- feature ---
 NAME        DESCRIPTION
 configmap   Kubernetes ConfigMap feature flag provider (flagd & OpenFeature file provider)
+flagsmith   Flagsmith remote feature flag & remote config provider (ephemeral identity & trait overrides)
+flipt       Flipt remote feature flag provider (ephemeral namespaces & segment overrides)
 none        None feature flag provider (disables feature provisioning)
 noop        No-op feature flag provider (disables feature provisioning)
+unleash     Unleash enterprise feature flag provider (context-constrained activation strategies & variants)
 ```
