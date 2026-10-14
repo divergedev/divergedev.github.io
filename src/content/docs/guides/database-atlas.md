@@ -178,3 +178,14 @@ Diverge automatically generates ephemeral credentials and connection strings wit
 2. The `DATABASE_URL` is configured with `search_path=preview_<env>,public`.
 3. When `spec.database.connectionRef` is omitted in `schema` mode, the controller automatically creates an owned Kubernetes Secret named `diverge-db-env-<env>-<hash8>` containing both `DATABASE_URL` and `DIVERGE_PREVIEW_SCHEMA` (`preview_<env>`) and binds `spec.database.connectionRef` to it so Atlas migration Jobs and preview pods consume the isolated schema automatically.
 4. When the preview environment is torn down, Diverge deletes the `diverge-db-env-<env>-<hash8>` Secret, drops the `preview_<env>` schema with `CASCADE`, and removes the `diverge_preview_<schema>` role.
+
+---
+
+## CloudNativePG (`cnpg` / `fresh` / `snapshot`) In-Cluster Branching
+
+In addition to lightweight PostgreSQL schema isolation (`mode: schema`), Diverge includes a native **CloudNativePG** (`postgresql.cnpg.io/v1` `Cluster`) database provider (`internal/database/cnpg`) for full cluster-level isolation inside Kubernetes:
+
+- **Fresh Cluster (`mode: fresh` or annotation `divergedev.com/database-provider: cnpg`)**: Provisions an ephemeral single-instance CloudNativePG `Cluster` (`diverge-pg-<env>`) bootstrapped via `initdb` (`database: app`, `owner: app`).
+- **Cloned Snapshot Cluster (`mode: snapshot`)**: When `spec.database.seedSource` (or annotation `divergedev.com/cnpg-source-cluster` / `DIVERGE_CNPG_SOURCE_CLUSTER`) references an in-cluster baseline CNPG cluster, Diverge provisions `diverge-pg-<env>` using `pg_basebackup` streaming clone (automatically copying the source password Secret into the preview namespace when `deploy.namespace: create`), or via `recovery` when `divergedev.com/cnpg-bootstrap-mode: recovery` and an object-store backup path (`divergedev.com/cnpg-barman-destination-path`) are configured.
+- **Automatic Secret Wiring & Teardown**: Once the CNPG `Cluster` reports healthy and its `<cluster>-app` credentials Secret is populated, Diverge injects `DATABASE_URL` and `DIVERGE_CNPG_CLUSTER` into `diverge-db-env-<env>`, records `status.databaseProvider`, and automatically deletes the `Cluster` when the preview `Environment` is torn down.
+

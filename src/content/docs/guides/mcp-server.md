@@ -271,9 +271,12 @@ Enabling `--allow-destructive` allows the AI agent to initiate irreversible dele
 
 ---
 
-## 8. Official AI Coding Agent Skill & Cursor Rules
+## 8. Official AI Coding Agent Plugin, Skill & Cursor Rules
 
-Diverge ships ready-to-use agent instructions in the repository so Claude Code, Cursor, Windsurf, and Copilot automatically follow the **diff → deploy → wait → verify → diagnose** preview loop:
+Diverge ships ready-to-use agent instructions and an official **Google Antigravity Plugin** in the repository so Antigravity, Claude Code, Cursor, Windsurf, and Copilot automatically follow the **diff → deploy → wait → verify → diagnose** preview loop:
 
-- **Agent Skill ([`skills/diverge/SKILL.md`](https://github.com/divergedev/diverge/blob/main/skills/diverge/SKILL.md))**: Install into `~/.claude/skills/diverge/SKILL.md` or `.agents/skills/diverge/SKILL.md`.
+- **Google Antigravity Plugin ([`plugins/diverge/`](https://github.com/divergedev/diverge/tree/main/plugins/diverge))**: Bundles `plugin.json`, `mcp_config.json` (`diverge-mcp`), `skills/diverge/SKILL.md`, the `diverge-operator` specialist subagent (`agents/diverge-operator.md`), and `rules/AGENTS.md`. Install into `.agents/plugins/diverge` (workspace) or `~/.gemini/config/plugins/diverge` (global).
+- **Antigravity IDE & VS Code Extension ([`editors/vscode/`](https://github.com/divergedev/diverge/tree/main/editors/vscode))**: Provides the Diverge sidebar (`Environments`, `Dev Session Leases`, `Verification Suite`), 1-click Magic Link launcher (`diverge.openMagicLink`), and baseline diff (`diverge.compareBaseline`) for Antigravity IDE, VS Code, and Cursor.
+- **Standalone Agent Skill ([`skills/diverge/SKILL.md`](https://github.com/divergedev/diverge/blob/main/skills/diverge/SKILL.md))**: Install into `~/.claude/skills/diverge/SKILL.md` or `.agents/skills/diverge/SKILL.md`.
 - **Cursor Rules ([`.cursor/rules/diverge.mdc`](https://github.com/divergedev/diverge/blob/main/.cursor/rules/diverge.mdc))**: Automatically loaded by Cursor when working in repositories configured with `.diverge.yaml`.
+
