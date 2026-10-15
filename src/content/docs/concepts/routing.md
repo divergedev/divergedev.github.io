@@ -21,15 +21,21 @@ Diverge is fully compatible with Istio Ambient mode (zero sidecars):
 
 - **L4 via ztunnel**: Secure L4 networking is handled transparently by the node-level ztunnel.
 - **L7 via Waypoint**: Layer 7 routing (`HTTPRoute`) for header-based routing is processed by the Waypoint proxy.
-- **Gateway API**: Diverge natively generates Kubernetes Gateway API `HTTPRoute` resources to perform the header-based routing, which Istio Ambient consumes.
+- **Gateway API**: Diverge natively generates Kubernetes Gateway API `HTTPRoute` and `GRPCRoute` resources to perform header-based routing, which Istio Ambient consumes.
+- **Convenience Annotations**: Set `divergedev.com/ambient-mesh: "true"` and `divergedev.com/waypoint: <waypoint-name>` on an `Environment` with `spec.deploy.namespace: create` to automatically apply `istio.io/dataplane-mode: ambient` and `istio.io/use-waypoint: <waypoint-name>` to the created preview namespace.
 - **Knative Kourier**: Fully compatible with Knative's Kourier ingress for namespaces running serverless scale-to-zero workloads.
 
 ### Prerequisites
 
 To use L7 header-based routing with Istio Ambient:
 - **Waypoint Proxy**: Deploy an Istio Waypoint proxy in the target namespace (e.g. `istioctl waypoint apply --namespace <namespace>`).
-- **Waypoint Enrollment**: Ensure the namespace or target workloads are labeled with `istio.io/use-waypoint: <waypoint-name>` so L7 traffic is redirected to the Waypoint proxy for policy and routing enforcement.
-- **Ingress Gateway**: For external traffic entering the cluster, configure an Ingress Gateway (such as Istio Ingress Gateway or a Gateway API Gateway) with appropriate listeners and routing to forward requests to the Waypoint proxy or services.
+- **Waypoint Enrollment**: Ensure the namespace or target workloads are labeled with `istio.io/use-waypoint: <waypoint-name>` (or annotate the `Environment` with `divergedev.com/waypoint: <waypoint-name>`) so L7 traffic is redirected to the Waypoint proxy for policy and routing enforcement.
+- **Ingress Gateway**: For external traffic entering the cluster, configure an Ingress Gateway (such as Istio Ingress Gateway or a Gateway API Gateway) with appropriate listeners and routing to forward requests to the Waypoint proxy or services. Use `divergedev.com/gateway-namespace: <ns>` when the Gateway lives in a separate namespace from your baseline services.
+
+## Cross-Namespace `ReferenceGrant` & GAMMA East-West Routing
+
+- **Automatic Cross-Namespace `ReferenceGrant` (`spec.deploy.namespace: create`)**: When an `Environment` deploys its preview pods and `Service` into an isolated namespace (`diverge-<env>`) while the `HTTPRoute` / `GRPCRoute` is reconciled in the baseline namespace, Diverge's `GatewayRoutingProvider` automatically reconciles a `gateway.networking.k8s.io/v1beta1` `ReferenceGrant` (`diverge-<env>-grant`) in `diverge-<env>` scoped strictly to the preview `Service` name (`<env>-<service>`).
+- **GAMMA East-West Service Mesh Routing (`--enable-gamma`)**: Pass `--enable-gamma` to `diverge-controller` so both `EnvironmentReconciler` and `PreviewGroupReconciler` attach Gateway API GAMMA mesh `parentRefs` (`group: ""`, `kind: Service`, `name: <baseline-service>`) to `HTTPRoute`s for east-west pod-to-pod header routing across Cilium, Linkerd, and Istio Ambient meshes.
 
 ## Subdomain Routing
 

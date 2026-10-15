@@ -175,9 +175,10 @@ The Diverge reconciler monitors the `Ready` condition on the generated Atlas cus
 Diverge automatically generates ephemeral credentials and connection strings with schema scoping for each preview environment:
 
 1. A unique preview schema (`preview_<env>`) and isolated per-schema database role (`diverge_preview_<schema>`) are created.
-2. The `DATABASE_URL` is configured with `search_path=preview_<env>,public`.
-3. When `spec.database.connectionRef` is omitted in `schema` mode, the controller automatically creates an owned Kubernetes Secret named `diverge-db-env-<env>-<hash8>` containing both `DATABASE_URL` and `DIVERGE_PREVIEW_SCHEMA` (`preview_<env>`) and binds `spec.database.connectionRef` to it so Atlas migration Jobs and preview pods consume the isolated schema automatically.
-4. When the preview environment is torn down, Diverge deletes the `diverge-db-env-<env>-<hash8>` Secret, drops the `preview_<env>` schema with `CASCADE`, and removes the `diverge_preview_<schema>` role.
+2. The `DATABASE_URL` is configured with `search_path=preview_<env>,public`, and Diverge revokes `CREATE` and write privileges (`INSERT, UPDATE, DELETE, TRUNCATE`) on `public` from the preview role (verifying zero effective `public` write/DDL privileges via `has_schema_privilege` and `has_table_privilege`).
+3. If `spec.database.seedSource` is configured in `schema` mode (`public`, `schema:<name>`, or `configmap:<name>[/<key>]`), Diverge clones table structures/data (advancing copied identity/serial sequences) or executes ConfigMap seed SQL inside the preview schema during provisioning.
+4. When `spec.database.connectionRef` is omitted in `schema` mode, the controller automatically creates an owned Kubernetes Secret named `diverge-db-env-<env>-<hash8>` containing both `DATABASE_URL` and `DIVERGE_PREVIEW_SCHEMA` (`preview_<env>`) and binds `spec.database.connectionRef` to it so Atlas migration Jobs and preview pods consume the isolated schema automatically.
+5. When the preview environment is torn down, Diverge deletes the `diverge-db-env-<env>-<hash8>` Secret, drops the `preview_<env>` schema with `CASCADE`, and removes the `diverge_preview_<schema>` role.
 
 ---
 
