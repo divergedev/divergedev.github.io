@@ -10,6 +10,14 @@ The Diverge CLI provides tools to interact with your preview environments direct
 ### `diverge create`
 Create an environment from the current branch.
 
+### `diverge curl <env> [path]`
+Send an HTTP request routed to a preview `Environment` or `PreviewGroup` (automatically injecting `x-diverge-env` and W3C `baggage`).
+- `--compare-baseline` — Send an unrouted baseline request and display status code, latency, and body diffs side-by-side
+- `-X, --method` — HTTP method (default: `GET`)
+- `-H, --header` — Additional HTTP headers (`Key: Value`, repeatable)
+- `-d, --data` — HTTP request body payload
+- `--base-url` — Override target base URL
+
 ### `diverge delete <name>`
 Delete an environment.
 
@@ -35,6 +43,10 @@ Detect which services changed relative to a base branch.
 - `--base` — Base ref (default: main)
 - `--output` — Output format: text, json
 
+### `diverge doctor [env-name]`
+Run automated root-cause diagnostics (`DIV-101`–`DIV-110`) across workloads, database migrations, and `AgentTask` sandboxes.
+- `--json` — Output machine-readable JSON diagnostic report
+
 ### `diverge env export`
 Export env vars (dotenv, json, shell).
 
@@ -49,7 +61,7 @@ Validate topology for cycles, orphans, and unreachable services.
 - `--config` — Path to .diverge.yaml
 
 ### `diverge init`
-Initialize a local dev playground.
+Initialize a `.diverge.yaml` configuration (`--config`) or bootstrap a local dev playground (`--provider auto|kind|k3d|existing`).
 
 ### `diverge list`
 List all environments.
@@ -60,8 +72,17 @@ Stream logs.
 ### `diverge mcp`
 Run MCP server over stdio for AI agent integration.
 
+### `diverge mcp setup`
+Configure `diverge mcp` automatically for AI coding assistants using atomic file replacement that preserves existing MCP server entries.
+- `--client` — Target AI client: `all` (default: writes `.cursor/mcp.json`, `.mcp.json`, and `~/.codeium/windsurf/mcp_config.json`), `cursor`, `claude`, or `windsurf`
+- `--server-url` — Diverge API server URL to embed in the MCP config
+- `--allow-destructive` — Include `--allow-destructive` in the configured `diverge mcp` arguments
+- `--dir` — Target workspace directory (default: `.`)
+
 ### `diverge open <name>`
-Open env URL in browser.
+Open a preview `Environment` or `PreviewGroup` URL in your browser.
+- `-m, --magic` — Append `?_diverge_env=<headerValue>` so `diverge-proxy` sets the `diverge_env` sticky routing cookie on first visit
+- `-p, --no-browser` — Print the resolved URL to stdout without launching a browser
 
 ### `diverge plugins`
 Manage plugins.
@@ -92,8 +113,15 @@ Simulate request routing through the topology.
 ### `diverge status`
 Show active envs and groups.
 
+### `diverge top`
+Live terminal dashboard (alias: `diverge watch`) displaying fleet FinOps hourly and monthly burn rates, active vs. hibernated (`💤 hibernated`) environment states, `PreviewGroup` service counts, TTL countdowns, and `AgentTask` LLM token/cost spend.
+- `--interval` — Refresh interval (default: `2s`)
+- `--once` — Render a single snapshot to stdout and exit without clearing the screen
+- `-A, --all-namespaces` — Query across all namespaces
+
 ### `diverge validate`
-Validate .diverge.yaml.
+Validate `.diverge.yaml` against JSON Schema or print the embedded schema (`--print-schema`).
 
 ### `diverge version`
 Print version.
+

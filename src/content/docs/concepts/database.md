@@ -25,6 +25,8 @@ Diverge's `SchemaProvider` handles the full lifecycle:
 
 1. **Provision**:
    - Creates an isolated PostgreSQL schema named `preview_<env>` (sanitized with hyphens converted to underscores, validated against `^[a-z][a-z0-9_]{0,62}$`) and an isolated per-schema role (`diverge_preview_<schema>`) whose `search_path` is scoped to `preview_<env>,public`.
+   - **`public` Schema Write-Protection**: Revokes `CREATE ON SCHEMA public` and `INSERT, UPDATE, DELETE, TRUNCATE ON ALL TABLES IN SCHEMA public` from the preview role while granting read-only fallback (`USAGE`), and verifies via `has_schema_privilege` / `has_table_privilege` that the preview role holds zero effective write or `CREATE` privileges on `public` (catching unsafe `PUBLIC` pseudogroup grants before pods start).
+   - **Declarative Schema & Data Seeding (`spec.database.seedSource`)**: When `spec.database.seedSource` is set to `public` or `schema:<source_schema>`, Diverge clones baseline tables (`CREATE TABLE IF NOT EXISTS ... (LIKE ... INCLUDING ALL)`), copies rows across compatible writable non-generated columns, and advances copied identity/serial sequences (`pg_get_serial_sequence` + `setval`). When set to `configmap:<name>[/<key>]`, Diverge executes custom seed SQL from the referenced ConfigMap inside a transaction scoped to `SET LOCAL search_path TO <preview_schema>, public`.
    - **Auto-Generated Connection Secret**: When `spec.database.connectionRef` is omitted in `schema` mode, the controller automatically creates (or updates) an owned Kubernetes `Secret` named `diverge-db-env-<env>-<hash8>` in the preview namespace containing `DATABASE_URL` (the schema-scoped connection string) and `DIVERGE_PREVIEW_SCHEMA` (`preview_<env>`), and sets `spec.database.connectionRef` to reference it so migration Jobs and application pods consume the isolated schema automatically.
 2. **SetupSQL via Kubernetes Job**: If `setupSQL` is defined in the database configuration, Diverge provisions an ephemeral Kubernetes Job running `psql` within the preview namespace to execute the initialization script:
    - Admin credentials are mounted securely via Secret reference (`DATABASE_URL`).
@@ -35,7 +37,7 @@ Diverge's `SchemaProvider` handles the full lifecycle:
 4. **Teardown**: Drops the `preview_<env>` schema with `CASCADE`, drops the `diverge_preview_<schema>` role, and deletes the associated `diverge-db-env-<env>-<hash8>` Secret and Job resources.
 
 :::tip
-Enable schema mode by setting `--database-provider=schema` on the controller. The provider connects to your existing PostgreSQL/AlloyDB cluster (or you can use `neon`, `cnpg`, or `cockroach` providers) and manages schemas within it.
+Enable schema mode by setting `--database-provider=schema` on the controller (or use `--database-provider=cnpg` for full in-cluster CloudNativePG `Cluster` isolation).
 
 For automated schema lifecycle management, Diverge integrates with **Ariga Atlas** for versioned migrations and declarative schema synchronization. Learn more in the [Atlas Schema Management Guide](/guides/database-atlas/).
 :::

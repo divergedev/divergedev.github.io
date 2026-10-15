@@ -53,6 +53,13 @@ spec:
 
 When deployed, Diverge creates the topic `order-events-pr-456` and injects `KAFKA_TOPIC=order-events-pr-456`, `KAFKA_CONSUMER_GROUP=order-events-pr-456`, and `KAFKA_BROKERS` into your preview pod.
 
+#### 3. Bounded Preview Topic Retention (`retention.ms`)
+
+To prevent ephemeral preview topics from retaining data for the broker's default 7-day retention window, Diverge automatically sets `retention.ms` when creating (and updating via `AlterTopicConfigs`) preview topics:
+- **Explicit Annotation (`divergedev.com/kafka-retention-ms`)**: Positive integer milliseconds (e.g., `"3600000"` for 1 hour).
+- **Environment TTL (`spec.lifecycle.ttl`)**: Automatically converts a positive environment TTL (e.g., `4h` → `"14400000"`) into topic retention.
+- **Default**: Falls back to `86400000` (24 hours).
+
 ---
 
 ### Temporal Provider Setup

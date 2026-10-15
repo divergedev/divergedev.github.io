@@ -59,6 +59,7 @@ Compatible with Apache Kafka, AutoMQ, Redpanda, and AWS MSK.
   - `KAFKA_TOPIC`: The isolated topic name (e.g., `payments-pr-123`).
   - `KAFKA_CONSUMER_GROUP`: The isolated consumer group ID (e.g., `payments-pr-123`).
   - `KAFKA_BROKERS`: Comma-separated list of configured broker addresses.
+- **Bounded Retention (`retention.ms`)**: Ephemeral topics are configured with bounded `retention.ms` (matching `divergedev.com/kafka-retention-ms`, `spec.lifecycle.ttl`, or a 24-hour default `86400000`) and reconciled via `AlterTopicConfigs` on existing topics.
 - **Cleanup**: Ephemeral topics created for the preview are safely deleted upon environment teardown.
 
 ### 2. Temporal Workflows

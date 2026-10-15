@@ -7,21 +7,25 @@ Diverge allows you to apply custom Kubernetes labels to preview namespaces via t
 
 ## Use Case: Istio Ambient Mesh
 
-Istio's Ambient mode provides zero-trust mTLS without sidecars. To enable it for preview environments, add the required label:
+Istio's Ambient mode provides zero-trust mTLS without sidecars. To enable it for preview environments, either add the labels directly under `spec.deploy.namespaceLabels` or use the first-class convenience annotations `divergedev.com/ambient-mesh: "true"` and `divergedev.com/waypoint`:
 
 ```yaml
 apiVersion: divergedev.com/v1alpha1
 kind: Environment
 metadata:
   name: preview-mr-42
+  annotations:
+    divergedev.com/ambient-mesh: "true"
+    divergedev.com/waypoint: "default-waypoint"
 spec:
   deploy:
     mode: delta
+    namespace: create
     namespaceLabels:
       istio.io/dataplane-mode: ambient
 ```
 
-When the controller creates or updates the preview namespace, this label is merged into the namespace's metadata, automatically enrolling it in Istio Ambient mesh.
+When the controller creates or updates the preview namespace (`diverge-preview-mr-42`), `divergedev.com/ambient-mesh: "true"` sets `istio.io/dataplane-mode: ambient`, `divergedev.com/waypoint` sets `istio.io/use-waypoint`, and any explicit `spec.deploy.namespaceLabels` entries take precedence.
 
 ## Label Protection
 
