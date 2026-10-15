@@ -34,8 +34,8 @@ To use L7 header-based routing with Istio Ambient:
 
 ## Cross-Namespace `ReferenceGrant` & GAMMA East-West Routing
 
-- **Automatic Cross-Namespace `ReferenceGrant` (`spec.deploy.namespace: create`)**: When an `Environment` deploys its preview pods and `Service` into an isolated namespace (`diverge-<env>`) while the `HTTPRoute` / `GRPCRoute` is reconciled in the baseline namespace, Diverge's `GatewayRoutingProvider` automatically reconciles a `gateway.networking.k8s.io/v1beta1` `ReferenceGrant` (`diverge-<env>-grant`) in `diverge-<env>` scoped strictly to the preview `Service` name (`<env>-<service>`).
-- **GAMMA East-West Service Mesh Routing (`--enable-gamma`)**: Pass `--enable-gamma` to `diverge-controller` so both `EnvironmentReconciler` and `PreviewGroupReconciler` attach Gateway API GAMMA mesh `parentRefs` (`group: ""`, `kind: Service`, `name: <baseline-service>`) to `HTTPRoute`s for east-west pod-to-pod header routing across Cilium, Linkerd, and Istio Ambient meshes.
+- **Automatic Cross-Namespace `ReferenceGrant` (`spec.deploy.namespace: create`)**: When an `Environment` deploys its preview workload into an isolated namespace (`env.PreviewNamespace()`) that differs from the route namespace, `GatewayRouter` automatically reconciles a `gateway.networking.k8s.io/v1beta1` `ReferenceGrant` (`diverge-<env>-grant`) in `env.PreviewNamespace()` granting route-namespace `HTTPRoute` and `GRPCRoute` access to each changed preview `Service` (`<env>-<service>`).
+- **GAMMA East-West Service Mesh Routing (`--enable-gamma`)**: Pass `--enable-gamma` to `diverge-controller` so `PreviewGroupReconciler` configures child `Environment`s' `spec.serviceConfig.serviceName` with the baseline service name; `GatewayRouter` creates the GAMMA mesh `HTTPRoute` from `spec.serviceConfig.serviceName` (while `EnvironmentReconciler` does not take `--enable-gamma` and uses `spec.serviceConfig.serviceName` when set directly on the `Environment`).
 
 ## Subdomain Routing
 
