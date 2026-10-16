@@ -26,6 +26,7 @@ The `diverge` CLI manages your local development environments, scaffolds `.diver
 | `diverge list` | List all environments in the cluster |
 | `diverge logs [env-name]` | Stream logs from a preview environment |
 | `diverge mcp` | Run MCP server over stdio for AI agent integration |
+| `diverge mcp setup` | Configure `diverge mcp` automatically for Cursor, Claude Code, and Windsurf |
 | `diverge open <name>` | Open the environment URL in browser (`--magic` for one-click `?_diverge_env=` cookie link) |
 | `diverge plugins` | Manage plugins |
 | `diverge preview create` | Create a preview group from current branch |
@@ -36,6 +37,7 @@ The `diverge` CLI manages your local development environments, scaffolds `.diver
 | `diverge route <service>` | Simulate request routing to a service through the topology |
 | `diverge schema` | Print the `.diverge.yaml` JSON Schema (generated from `diverge.config.v1.Config` proto) |
 | `diverge status [env-name]` | Show active preview environments and groups (without `<env-name>`, lists all environments in the namespace) |
+| `diverge top` (`diverge watch`) | Live terminal dashboard of fleet FinOps burn rate, `💤 hibernated` / `⚠️ drift` environment states, `PreviewGroup`s, and `AgentTask`s |
 | `diverge validate` | Validate `.diverge.yaml` against JSON Schema or print the embedded schema (`--print-schema`) |
 | `diverge version` | Print version info |
 
@@ -104,7 +106,7 @@ diverge schema > schemas/diverge.schema.json
 
 ### `diverge completion`
 
-Generate shell autocompletion scripts for `bash`, `zsh`, `fish`, and `powershell`. Includes **dynamic cluster-aware tab-completion** that queries the active namespace for live `Environment` names (`diverge status <TAB>`, `diverge logs <TAB>`, `diverge open <TAB>`, `diverge delete <TAB>`, `diverge doctor <TAB>`) and `AgentTask` names (`diverge task <subcommand> <TAB>`).
+Generate shell autocompletion scripts for `bash`, `zsh`, `fish`, and `powershell`. Includes **dynamic cluster-aware tab-completion** that queries the active namespace for live `Environment` and `PreviewGroup` names (`diverge status <TAB>`, `diverge logs <TAB>`, `diverge open <TAB>`, `diverge delete <TAB>`, `diverge doctor <TAB>`) and `AgentTask` names (`diverge task <subcommand> <TAB>`).
 
 **Usage:** `diverge completion [bash|zsh|fish|powershell]`
 
@@ -147,7 +149,7 @@ Route cluster traffic for a service to your local machine.
 - `--proxy-mode` — Proxy mode, either `path` or `host` (default: path)
 - `--server` — Diverge server address for the tunnel (default: auto-detect via port-forward)
 - `--token` — Bearer token for the Diverge server (default: `DIVERGE_TOKEN`, then the kubeconfig credential)
-- `--on-conflict` — Conflict resolution policy: `warn` (default), `block`, or `allow` (Diverge Pro)
+- `--on-conflict` — Conflict resolution policy: `warn` (default), `block`, or `allow` (header-isolated concurrent developer session)
 - `--force` — Force start dev session, overriding any active collision
 
 The server authenticates tunnel connections by Kubernetes TokenReview, so the
@@ -194,6 +196,16 @@ Run a Model Context Protocol (MCP) server over `stdio` for AI agent integration 
 **Flags:**
 - `--server-url` — Diverge API server URL (defaults to `DIVERGE_SERVER_URL` env var)
 - `--allow-destructive` — Enable destructive tools (`delete`)
+
+#### `diverge mcp setup`
+
+Configure `diverge mcp` automatically for Cursor (`.cursor/mcp.json`), Claude Code (`.mcp.json`), and Windsurf (`~/.codeium/windsurf/mcp_config.json`) using atomic file replacement that preserves existing MCP server entries.
+
+**Flags:**
+- `--client` — Target AI client: `all` (default), `cursor`, `claude`, or `windsurf`
+- `--server-url` — Diverge API server URL to embed in the MCP config
+- `--allow-destructive` — Include `--allow-destructive` in the configured `diverge mcp` arguments
+- `--dir` — Target workspace directory (default: `.`)
 
 See the [MCP Server Guide](/guides/mcp-server/) for full setup instructions and editor configurations.
 
@@ -261,4 +273,16 @@ Open a preview `Environment` or `PreviewGroup` URL in your default browser (or p
 **Flags:**
 - `-m, --magic` — Append `?_diverge_env=<headerValue>` so `diverge-proxy` sets the `diverge_env` sticky routing cookie on first visit
 - `-p, --no-browser` — Print the resolved URL to stdout without launching a browser (ideal for CI logs, remote SSH sessions, or piping to `pbcopy`)
+
+### `diverge top`
+
+Live terminal dashboard (alias: `diverge watch`) displaying fleet FinOps hourly and monthly burn rates, environment states (`💤 hibernated` when scaled to zero, `⚠️ drift` for active baseline-drifted environments, or `active`), `PreviewGroup` service counts, TTL countdowns, and `AgentTask` LLM token/cost spend.
+
+**Usage:** `diverge top [flags]` (or `diverge watch [flags]`)
+
+**Flags:**
+- `-i, --interval` — Refresh interval (default: `2s`, minimum `200ms`)
+- `--once` — Render a single snapshot to stdout and exit without clearing the screen
+- `-A, --all-namespaces` — Query environments, preview groups, and agent tasks across all namespaces
+- `-o, --output` — Output format: `table` (default), `json`, or `yaml`
 

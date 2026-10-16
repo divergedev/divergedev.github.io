@@ -1,15 +1,15 @@
 ---
 title: Async Routing Guide
-description: Configure Kafka, Temporal, and webhook routing for preview environments
+description: Configure Kafka, Temporal, Redis / Valkey, and webhook routing for preview environments
 ---
 
-This guide walks you through setting up and configuring asynchronous routing in Diverge for event-driven workloads, background workers, and workflow orchestrators.
+This guide walks you through setting up and configuring asynchronous routing in Diverge for event-driven workloads, background workers, caches/queues, and workflow orchestrators.
 
 ---
 
 ## 1. Provider Setup
 
-Diverge supports Kafka, Temporal, and custom Webhook async providers. Configure the controller with the appropriate flags and permissions for your environment.
+Diverge supports Kafka, Temporal, Redis / Valkey, and custom Webhook async providers. Configure the controller with the appropriate flags and permissions for your environment.
 
 ### Kafka Provider Setup
 
@@ -99,6 +99,51 @@ Diverge injects `TEMPORAL_TASK_QUEUE=billing-tasks-pr-456` and `TEMPORAL_NAMESPA
 
 ---
 
+### Redis / Valkey Provider Setup
+
+The Redis / Valkey provider isolates shared Redis or Valkey instances (caches, rate limiters, and BullMQ / Sidekiq / Celery queues) per preview environment using deterministic key prefixes (`preview:<env>:` for the `default` or empty target, or `preview:<env>:<target>:` for a named target) and performs automatic RESP wire-protocol `SCAN MATCH <prefix>*` + `UNLINK` (falling back to `DEL` on `-ERR` / `-NOPERM` and single-key `UNLINK`/`DEL` on Redis Cluster `-CROSSSLOT`) eviction on environment teardown. *(Note: Redis client `keyPrefix` options only prefix key arguments; if your application uses Redis Pub/Sub channels, pass channel names through `ResolveRedisKey` / `resolveRedisKey` / `resolve_redis_key` explicitly.)*
+
+#### 1. Configure the Controller
+
+```yaml
+# Helm values.yaml
+async:
+  provider: redis # or valkey
+  redis:
+    addr: "redis-master.redis.svc.cluster.local:6379"
+    username: "" # Optional Redis 6+ ACL username
+    db: 0
+```
+
+Or via CLI flags / environment variables on `diverge-controller`:
+- `--async-provider=redis` (or automatically resolved per route when `protocol: redis` or `protocol: valkey` is specified)
+- `--redis-addr=redis-master.redis.svc.cluster.local:6379` (`DIVERGE_REDIS_ADDR`)
+- `--redis-username` (`DIVERGE_REDIS_USERNAME`) and `DIVERGE_REDIS_PASSWORD`
+- `--redis-db=0` (`DIVERGE_REDIS_DB`)
+
+You can also override the target Redis endpoint or logical DB per `Environment` via annotations:
+- `divergedev.com/redis-addr`: `"valkey.cache.svc.cluster.local:6379"`
+- `divergedev.com/redis-db`: `"2"` *(nonzero logical databases require a standalone Redis/Valkey endpoint; Redis Cluster supports only database `0`)*
+
+#### 2. Define the CRD Async Route
+
+```yaml
+apiVersion: divergedev.com/v1alpha1
+kind: Environment
+metadata:
+  name: pr-456
+  namespace: default
+spec:
+  routing:
+    asyncRoutes:
+      - protocol: redis # or valkey
+        target: cart-cache
+```
+
+When deployed (without a custom `envVarMapping`), Diverge injects `DIVERGE_REDIS_PREFIX=preview:pr-456:cart-cache:`, `REDIS_KEY_PREFIX=preview:pr-456:cart-cache:`, `REDIS_NAMESPACE=preview:pr-456:cart-cache` (or `preview:pr-456:` / `preview:pr-456` when `target` is `"default"` or omitted), and `REDIS_ADDR` (when configured) into the preview pod. When `pr-456` is deleted, the controller scans and unlinks all keys matching `preview:pr-456:cart-cache:*`.
+
+---
+
 ### Webhook Provider Setup (Custom Infrastructure)
 
 For external brokers like AWS SQS/SNS, RabbitMQ, or GCP Pub/Sub, use the Webhook provider to delegate provisioning to an external service.
@@ -178,6 +223,10 @@ When async routes are provisioned, Diverge automatically injects standard enviro
 | **Kafka** | `KAFKA_BROKERS` | `broker1:9092,broker2:9092` | Comma-separated Kafka broker list |
 | **Temporal** | `TEMPORAL_TASK_QUEUE` | `<target>-<env-name>` | Dedicated preview task queue name |
 | **Temporal** | `TEMPORAL_NAMESPACE` | Value from controller flag | Temporal namespace |
+| **Redis / Valkey** | `DIVERGE_REDIS_PREFIX` | `preview:<env-name>:` or `preview:<env-name>:<target>:` | Preview key namespace prefix (`default` vs. named target) |
+| **Redis / Valkey** | `REDIS_KEY_PREFIX` | `preview:<env-name>:` or `preview:<env-name>:<target>:` | Alias for `DIVERGE_REDIS_PREFIX` |
+| **Redis / Valkey** | `REDIS_NAMESPACE` | `preview:<env-name>` or `preview:<env-name>:<target>` | Prefix without trailing colon (for BullMQ `prefix` / Sidekiq namespace) |
+| **Redis / Valkey** | `REDIS_ADDR` | `<host>:<port>` | Resolved Redis/Valkey endpoint (injected when configured) |
 | **Webhook** | Custom key-values | Specified by webhook response | Dynamic values returned by webhook endpoint |
 
 ### Custom Environment Variable Mappings
@@ -199,7 +248,7 @@ spec:
 
 ## 3. SDK Integration Examples
 
-Diverge provides Go SDK packages to propagate preview environment context across asynchronous message boundaries.
+Diverge provides Go, Node.js, and Python SDK packages to propagate preview environment context across asynchronous message boundaries and shared caches.
 
 ### Kafka Header Propagation (`pkg/sdk/kafka`)
 
@@ -307,6 +356,37 @@ func main() {
 		log.Fatalf("Worker failed: %v", err)
 	}
 }
+```
+
+---
+
+### Redis / Valkey Key Prefix Resolution (`pkg/sdk`, `@divergedev/sdk`, `diverge-sdk`)
+
+Use the Diverge SDK's Redis helpers to automatically prefix keys (`preview:<env>:<key>`) when running inside a preview pod or serving a preview-routed request, while leaving baseline keys untouched when no preview environment is active:
+
+**Go (`github.com/divergedev/diverge/pkg/sdk`):**
+```go
+import "github.com/divergedev/diverge/pkg/sdk"
+
+key := sdk.ResolveRedisKey(ctx, "cart:user-42")
+// Preview "pr-456" -> "preview:pr-456:cart:user-42"
+// Baseline         -> "cart:user-42"
+```
+
+**Node.js / TypeScript (`@divergedev/sdk`):**
+```ts
+import { resolveRedisKey, redisKeyPrefix } from '@divergedev/sdk';
+
+const key = resolveRedisKey('cart:user-42');
+// Direct ioredis client: new Redis({ keyPrefix: redisKeyPrefix() })
+// BullMQ Queue/Worker:   new Queue('orders', { prefix: process.env.REDIS_NAMESPACE || 'bull' })
+```
+
+**Python (`diverge-sdk`):**
+```python
+from diverge_sdk import resolve_redis_key
+
+key = resolve_redis_key("cart:user-42")
 ```
 
 ---

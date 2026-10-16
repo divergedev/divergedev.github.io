@@ -114,7 +114,7 @@ Simulate request routing through the topology.
 Show active envs and groups.
 
 ### `diverge top`
-Live terminal dashboard (alias: `diverge watch`) displaying fleet FinOps hourly and monthly burn rates, active vs. hibernated (`💤 hibernated`) environment states, `PreviewGroup` service counts, TTL countdowns, and `AgentTask` LLM token/cost spend.
+Live terminal dashboard (alias: `diverge watch`) displaying fleet FinOps hourly and monthly burn rates, environment states (`💤 hibernated` when scaled to zero, `⚠️ drift` for active baseline-drifted environments, or `active`), `PreviewGroup` service counts, TTL countdowns, and `AgentTask` LLM token/cost spend.
 - `--interval` — Refresh interval (default: `2s`)
 - `--once` — Render a single snapshot to stdout and exit without clearing the screen
 - `-A, --all-namespaces` — Query across all namespaces
