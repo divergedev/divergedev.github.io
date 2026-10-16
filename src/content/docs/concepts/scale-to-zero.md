@@ -63,7 +63,7 @@ Platform teams can enforce hard capacity and FinOps budget guardrails per Kubern
 | `divergedev.com/max-active-environments` | `"10"` | Maximum concurrent non-hibernated preview `Environment`s in the namespace |
 | `divergedev.com/max-cnpg-clusters` | `"3"` | Maximum concurrent dedicated CloudNativePG (`cnpg`/`fresh`/`snapshot`) database clusters |
 | `divergedev.com/max-hourly-cost-usd` | `"2.50"` | Maximum aggregate hourly FinOps burn rate across active `Environment`s in the namespace |
-| `divergedev.com/quota-exceed-policy` | `"hibernate-oldest"` | `"hibernate-oldest"` (default — scales the least-recently-used active `Environment`s to `0` replicas to free budget) or `"reject"` (holds new environments in `Pending` with `QuotaExceeded`) |
+| `divergedev.com/quota-exceed-policy` | `"hibernate-oldest"` | `"hibernate-oldest"` (default — scales the least-recently-used active `Environment`s to `0` replicas to free budget) or `"reject"` (marks new environments `Failed` with `QuotaReady=False` / `Reason: QuotaExceeded`) |
 
 ## Sequence Diagram
 

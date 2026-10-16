@@ -16,8 +16,8 @@ This approach significantly reduces deployment time and cluster resource usage.
 
 Because delta previews rely on shared baseline services and baseline `ConfigMap`/`Secret` configurations, changes to the baseline cluster while a PR is open can cause subtle configuration drift.
 
-Diverge automatically computes a deterministic SHA-256 fingerprint (`divergedev.com/baseline-fingerprint`) over matched baseline `Deployment` pod templates (`Containers`, `InitContainers`, volumes, env) and referenced `ConfigMap`s/`Secret`s, watching baseline `Deployment` and `ConfigMap` updates in real time:
+Diverge automatically computes a deterministic SHA-256 fingerprint (`divergedev.com/baseline-fingerprint`) over matched baseline `Deployment` pod templates (`Containers`, `InitContainers`, `env`, `envFrom`) and referenced `ConfigMap`s/`Secret`s (including projected volume `ConfigMap`/`Secret` sources), watching baseline `Deployment` and `ConfigMap` updates in real time:
 
-- **`divergedev.com/drift-policy: "warn"` (default)**: Sets condition `BaselineDriftDetected=True` (`Reason: BaselineUpdated`), emits a `BaselineDriftDetected` Warning event, and surfaces `⚠️ drift` in `diverge top`.
+- **`divergedev.com/drift-policy: "warn"` (default)**: Sets condition `BaselineDriftDetected=True` (`Reason: BaselineUpdated`), emits a `BaselineDriftDetected` Warning event, and surfaces `⚠️ drift` in `diverge top` for active environments (`💤 hibernated` takes display precedence while an environment is scaled to zero).
 - **`divergedev.com/drift-policy: "sync"`**: Automatically re-runs `Deployer.Deploy`, injects the updated `divergedev.com/baseline-fingerprint` into preview pod templates to trigger a rolling restart, and emits a `BaselineSynced` Normal event.
 - **`divergedev.com/drift-policy: "ignore"`**: Disables baseline drift checks for the environment.

@@ -74,12 +74,13 @@ Designed for orchestrating distributed workflows and activities.
 ### 3. Redis / Valkey (Key-Prefix Isolation & Eviction)
 Compatible with shared Redis and Valkey clusters or standalone instances used for caching, rate limiting, and background job queues (BullMQ, Sidekiq, Celery).
 
-- **Isolation Strategy**: Injects deterministic preview key prefixes (`preview:<env-name>:`) without spinning up a dedicated Redis pod per PR.
+- **Isolation Strategy**: Injects deterministic preview key prefixes (`preview:<env-name>:` for `default`/empty target, or `preview:<env-name>:<target>:` for a named target) without spinning up a dedicated Redis pod per PR.
 - **Injected Variables**:
-  - `DIVERGE_REDIS_PREFIX`: The preview key prefix (`preview:<env-name>:`).
+  - `DIVERGE_REDIS_PREFIX`: The preview key prefix (`preview:<env-name>:` or `preview:<env-name>:<target>:`).
   - `REDIS_KEY_PREFIX`: Alias for `DIVERGE_REDIS_PREFIX`.
-  - `DIVERGE_REDIS_TARGET`: Resolved route identifier (`<target>:<env-name>`).
-- **Cleanup**: Upon environment teardown, the controller connects via the native RESP wire protocol and executes `SCAN MATCH preview:<env-name>:* COUNT 100` + `UNLINK` (with automatic fallback to `DEL` and single-key eviction on Redis Cluster `-CROSSSLOT`).
+  - `REDIS_NAMESPACE`: Prefix without trailing colon (`preview:<env-name>` or `preview:<env-name>:<target>`).
+  - `REDIS_ADDR`: Resolved Redis/Valkey endpoint (when configured).
+- **Cleanup**: Upon environment teardown, the controller connects via the native RESP wire protocol and executes `SCAN MATCH <prefix>* COUNT 100` + `UNLINK` (with automatic fallback to `DEL` and single-key eviction on Redis Cluster `-CROSSSLOT`).
 
 ### 4. Webhook (Custom Infrastructure)
 For teams utilizing AWS SQS/SNS, Google Cloud Pub/Sub, RabbitMQ, or proprietary in-house brokers.

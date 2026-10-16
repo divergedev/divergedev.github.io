@@ -99,13 +99,13 @@ Slash commands are restricted to authorized project members (`OWNER`, `MEMBER`, 
 
 ### Turnkey GitLab CI/CD Catalog Component (Recommended)
 
-Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v0.17.0`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
+Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v0.15.0`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
 
 When `diverge_services` is left empty and `.diverge.yaml` is present in your repository, the component **automatically fetches the target branch, runs `diverge diff --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --output json`**, deploys a delta `PreviewGroup` (`mr-$CI_MERGE_REQUEST_IID`) for only the modified services, and exports a `preview.env` `dotenv` report artifact to downstream E2E test jobs:
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v0.17.0
+  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v0.15.0
     inputs:
       diverge_registry: "$CI_REGISTRY_IMAGE"
       diverge_base_url: "https://staging.example.com"
@@ -176,10 +176,10 @@ variables:
 
 # All jobs needing the CLI use this image (git, curl, jq included)
 default:
-  image: ghcr.io/divergedev/diverge-cli:v0.17.0
+  image: ghcr.io/divergedev/diverge-cli:v0.15.0
 ```
 
-To pin a specific version, replace `v0.17.0` with the desired tag. Use `latest` to always get the newest release.
+To pin a specific version, replace `v0.15.0` with the desired tag. Use `latest` to always get the newest release.
 
 #### Change Detection
 

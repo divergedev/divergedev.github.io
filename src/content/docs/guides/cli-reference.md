@@ -276,7 +276,7 @@ Open a preview `Environment` or `PreviewGroup` URL in your default browser (or p
 
 ### `diverge top`
 
-Live terminal dashboard (alias: `diverge watch`) displaying fleet FinOps hourly and monthly burn rates, active vs. hibernated (`💤 hibernated`) vs. baseline-drifted (`⚠️ drift`) environment states, `PreviewGroup` service counts, TTL countdowns, and `AgentTask` LLM token/cost spend.
+Live terminal dashboard (alias: `diverge watch`) displaying fleet FinOps hourly and monthly burn rates, environment states (`💤 hibernated` when scaled to zero, `⚠️ drift` for active baseline-drifted environments, or `active`), `PreviewGroup` service counts, TTL countdowns, and `AgentTask` LLM token/cost spend.
 
 **Usage:** `diverge top [flags]` (or `diverge watch [flags]`)
 
