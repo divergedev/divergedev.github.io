@@ -88,9 +88,9 @@ For security, Diverge verifies the commenter's `author_association` before execu
 
 ## 3. GitHub Actions Workflow
 
-### Turnkey Composite Action (`divergedev/diverge@v0.15.0` — Recommended)
+### Turnkey Composite Action (`divergedev/diverge@v0.17.0` — Recommended)
 
-Use the official `divergedev/diverge@v0.15.0` composite GitHub Action (defined in the root [`action.yml`](https://github.com/divergedev/diverge/blob/main/action.yml) of `divergedev/diverge`) to validate `.diverge.yaml`, run `diverge diff`, deploy a delta `PreviewGroup` for only modified microservices, and pass routing headers directly into Playwright or Cypress E2E tests:
+Use the official `divergedev/diverge@v0.17.0` composite GitHub Action (defined in the root [`action.yml`](https://github.com/divergedev/diverge/blob/main/action.yml) of `divergedev/diverge`) to validate `.diverge.yaml`, run `diverge diff`, deploy a delta `PreviewGroup` for only modified microservices, and pass routing headers directly into Playwright or Cypress E2E tests:
 
 ```yaml
 name: Diverge Preview Environment
@@ -118,7 +118,7 @@ jobs:
 
       - name: Deploy Diverge Delta Preview
         id: diverge
-        uses: divergedev/diverge@v0.15.0
+        uses: divergedev/diverge@v0.17.0
         with:
           action: deploy
           kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
@@ -145,7 +145,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: divergedev/diverge@v0.15.0
+      - uses: divergedev/diverge@v0.17.0
         with:
           action: teardown
           kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
@@ -166,7 +166,7 @@ export default defineConfig({
 });
 ```
 
-#### `divergedev/diverge@v0.15.0` Inputs
+#### `divergedev/diverge@v0.17.0` Inputs
 
 | Input | Default | Description |
 | :--- | :--- | :--- |
@@ -188,7 +188,7 @@ export default defineConfig({
 | `wait-timeout` | `180s` | Timeout when waiting for `PreviewGroup` readiness |
 | `dry-run` | `false` | Render `PreviewGroup` manifest without applying to Kubernetes |
 
-#### `divergedev/diverge@v0.15.0` Outputs
+#### `divergedev/diverge@v0.17.0` Outputs
 
 | Output | Example | Description |
 | :--- | :--- | :--- |

@@ -49,10 +49,21 @@ Even without Knative or KEDA installed, Diverge's `EnvironmentReconciler` suppor
 
 | Annotation | Example | Description |
 |------------|---------|-------------|
-| `divergedev.com/hibernate-after` | `"30m"` | Duration of inactivity after which the controller scales the preview deployment to 0 replicas and transitions the `Environment` to `Phase: Hibernated` (`Hibernated: True` condition). |
+| `divergedev.com/hibernate-after` | `"30m"` | Duration of inactivity after which the controller scales managed preview `Deployment`s and `StatefulSet`s to `0` replicas and sets `divergedev.com/hibernated: "true"` (`Hibernated` condition). |
 | `divergedev.com/last-traffic-at` | `"2026-10-12T01:15:00Z"` | RFC3339 timestamp of the last observed HTTP/gRPC request (updated by `diverge-proxy` / `activator-proxy`). If omitted, inactivity is measured from `status.createdAt`. |
 
-When traffic arrives again or the annotation is updated, the controller wakes the hibernated environment back to `Running`.
+When traffic arrives again or `divergedev.com/hibernated` is cleared, the controller wakes the hibernated environment back to `Running`.
+
+## Namespace Quotas & FinOps LRU Auto-Hibernation
+
+Platform teams can enforce hard capacity and FinOps budget guardrails per Kubernetes `Namespace` using annotations on the `Namespace` resource:
+
+| Namespace Annotation | Example | Description |
+|----------------------|---------|-------------|
+| `divergedev.com/max-active-environments` | `"10"` | Maximum concurrent non-hibernated preview `Environment`s in the namespace |
+| `divergedev.com/max-cnpg-clusters` | `"3"` | Maximum concurrent dedicated CloudNativePG (`cnpg`/`fresh`/`snapshot`) database clusters |
+| `divergedev.com/max-hourly-cost-usd` | `"2.50"` | Maximum aggregate hourly FinOps burn rate across active `Environment`s in the namespace |
+| `divergedev.com/quota-exceed-policy` | `"hibernate-oldest"` | `"hibernate-oldest"` (default — scales the least-recently-used active `Environment`s to `0` replicas to free budget) or `"reject"` (holds new environments in `Pending` with `QuotaExceeded`) |
 
 ## Sequence Diagram
 

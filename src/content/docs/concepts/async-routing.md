@@ -71,7 +71,17 @@ Designed for orchestrating distributed workflows and activities.
   - `TEMPORAL_NAMESPACE`: The target Temporal namespace.
 - **Cleanup**: When preview workers stop polling, Temporal unloads idle task queues from memory. Diverge's teardown process ensures any pending tasks are drained before the preview environment is removed.
 
-### 3. Webhook (Custom Infrastructure)
+### 3. Redis / Valkey (Key-Prefix Isolation & Eviction)
+Compatible with shared Redis and Valkey clusters or standalone instances used for caching, rate limiting, and background job queues (BullMQ, Sidekiq, Celery).
+
+- **Isolation Strategy**: Injects deterministic preview key prefixes (`preview:<env-name>:`) without spinning up a dedicated Redis pod per PR.
+- **Injected Variables**:
+  - `DIVERGE_REDIS_PREFIX`: The preview key prefix (`preview:<env-name>:`).
+  - `REDIS_KEY_PREFIX`: Alias for `DIVERGE_REDIS_PREFIX`.
+  - `DIVERGE_REDIS_TARGET`: Resolved route identifier (`<target>:<env-name>`).
+- **Cleanup**: Upon environment teardown, the controller connects via the native RESP wire protocol and executes `SCAN MATCH preview:<env-name>:* COUNT 100` + `UNLINK` (with automatic fallback to `DEL` and single-key eviction on Redis Cluster `-CROSSSLOT`).
+
+### 4. Webhook (Custom Infrastructure)
 For teams utilizing AWS SQS/SNS, Google Cloud Pub/Sub, RabbitMQ, or proprietary in-house brokers.
 
 - **Isolation Strategy**: Diverge issues an HTTP `POST` webhook to your infrastructure provisioning service when a preview environment is created or destroyed.
@@ -107,6 +117,12 @@ Implements the `workflow.ContextPropagator` interface from the Temporal Go SDK:
 
 - Propagates the preview environment identifier across workflow boundaries and child workflows.
 - Activities are routed to preview-scoped task queues by setting `ActivityOptions.TaskQueue` to the value of `TEMPORAL_TASK_QUEUE` — the propagator carries the environment context, while task-queue routing is configured separately in your activity options.
+
+### Redis / Valkey Key Prefix Resolution (`pkg/sdk`, `@divergedev/sdk`, `diverge-sdk`)
+Resolves cache and queue keys across Go (`sdk.ResolveRedisKey`), Node.js (`resolveRedisKey`), and Python (`resolve_redis_key`):
+
+- Automatically prefixes keys with `preview:<env>:` when `DIVERGE_REDIS_PREFIX`, active request context, or `DIVERGE_ENV` is present.
+- Leaves baseline keys unmodified when no preview context is active, and prevents double-prefixing.
 
 ---
 
