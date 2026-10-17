@@ -82,7 +82,17 @@ Compatible with shared Redis and Valkey clusters or standalone instances used fo
   - `REDIS_ADDR`: Resolved Redis/Valkey endpoint (when configured).
 - **Cleanup**: Upon environment teardown, the controller connects via the native RESP wire protocol and executes `SCAN MATCH <prefix>* COUNT 100` + `UNLINK` (with automatic fallback to `DEL` and single-key eviction on Redis Cluster `-CROSSSLOT`).
 
-### 4. Webhook (Custom Infrastructure)
+### 4. S3 / GCS / MinIO (Object Storage Prefix Isolation)
+Compatible with Amazon S3, Google Cloud Storage (GCS), Cloudflare R2, and self-hosted MinIO buckets (`protocol: s3 | gcs | minio`).
+
+- **Isolation Strategy**: Isolates object storage operations within a shared bucket using deterministic, namespace-scoped object key prefixes (`previews/<namespace>/<env-name>/` for the `default`/empty target, or `previews/<namespace>/<env-name>/<target>/` for a named target such as `uploads`).
+- **Injected Variables**:
+  - `DIVERGE_STORAGE_PREFIX`: Canonical preview object key prefix (`previews/<namespace>/<env-name>/` or `previews/<namespace>/<env-name>/<target>/`).
+  - `S3_KEY_PREFIX`, `AWS_S3_PREFIX`, `GCS_KEY_PREFIX`: Provider-specific key prefix aliases.
+  - `DIVERGE_STORAGE_BUCKET`, `DIVERGE_STORAGE_ENDPOINT`: Configured bucket name and S3/GCS/MinIO endpoint URL (injected when configured on the controller).
+- **Cleanup**: Upon environment teardown, Diverge deletes all objects under the `previews/<namespace>/<env-name>/` prefix (including all `<target>/` descendants).
+
+### 5. Webhook (Custom Infrastructure)
 For teams utilizing AWS SQS/SNS, Google Cloud Pub/Sub, RabbitMQ, or proprietary in-house brokers.
 
 - **Isolation Strategy**: Diverge issues an HTTP `POST` webhook to your infrastructure provisioning service when a preview environment is created or destroyed.
@@ -124,6 +134,12 @@ Resolves cache and queue keys across Go (`sdk.ResolveRedisKey`), Node.js (`resol
 
 - Automatically prefixes keys with `preview:<env>:` when `DIVERGE_REDIS_PREFIX`, active request context, or `DIVERGE_ENV` is present.
 - Leaves baseline keys unmodified when no preview context is active, and prevents double-prefixing.
+
+### S3 / GCS / MinIO Object Key Prefix Resolution (`pkg/sdk`, `@divergedev/sdk`, `diverge-sdk`)
+Resolves object storage keys across Go (`sdk.ResolveStorageKey(ctx, "avatars/user-1.png")`), Node.js (`resolveStorageKey("avatars/user-1.png")`), and Python (`resolve_storage_key("avatars/user-1.png")`):
+
+- Automatically prefixes object keys with `previews/<namespace>/<env>/` (or `previews/<namespace>/<env>/<target>/`, falling back to `previews/<env>/` when no namespace is set) when `DIVERGE_STORAGE_PREFIX` / `S3_KEY_PREFIX` / `AWS_S3_PREFIX` / `GCS_KEY_PREFIX`, active request context, or `DIVERGE_ENV` is present.
+- Leaves baseline object keys unmodified when no preview context is active, and prevents double-prefixing.
 
 ---
 

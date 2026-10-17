@@ -24,15 +24,28 @@ Configures how the environment is deployed.
 - **`namespaceLabels`**: Optional map of labels to apply to the preview namespace. Useful for enabling Istio Ambient mesh (`istio.io/dataplane-mode: ambient`). Labels prefixed with `divergedev.com/` are protected and cannot be overridden.
 
 ### `routing`
-Configures ingress and traffic routing.
+Configures ingress, mesh, and asynchronous / storage traffic routing.
 - **`mode`**: The routing strategy. Valid enums: `header`, `namespace`, `subdomain`.
 - **`headerKey`**: The HTTP header key used for routing (validated against RFC 7230 token format).
 - **`headerValue`**: The HTTP header value to match.
+- **`baseDomain`**: Base domain used when `mode: subdomain` (e.g., `preview.example.com`). Supports automatic `external-dns` (`divergedev.com/external-dns: "true"` or `divergedev.com/external-dns-hostname`) annotation propagation onto generated `HTTPRoute` / `GRPCRoute` resources and `cert-manager` (`divergedev.com/cluster-issuer` or `divergedev.com/issuer`) Gateway TLS and `Certificate` provisioning.
+- **`asyncRoutes`**: List of asynchronous and storage isolation routes (`protocol` + `target` + optional `envVarMapping`). Supported `protocol` values:
+  - `kafka`: Provisions isolated topic (`<target>-<env>`) and consumer group (`KAFKA_TOPIC`, `KAFKA_CONSUMER_GROUP`, `KAFKA_BROKERS`).
+  - `temporal`: Assigns isolated task queue (`TEMPORAL_TASK_QUEUE=<target>-<env>`, `TEMPORAL_NAMESPACE`).
+  - `redis` / `valkey`: Isolates shared keyspaces via prefix (`DIVERGE_REDIS_PREFIX`, `REDIS_KEY_PREFIX`, `REDIS_NAMESPACE`, `REDIS_ADDR`) and evicts keys on teardown.
+  - `s3` / `gcs` / `minio`: Isolates shared object storage buckets via deterministic prefix (`DIVERGE_STORAGE_PREFIX=previews/<namespace>/<env>/` or `previews/<namespace>/<env>/<target>/`, `S3_KEY_PREFIX`, `AWS_S3_PREFIX`, `GCS_KEY_PREFIX`, plus `DIVERGE_STORAGE_BUCKET` and `DIVERGE_STORAGE_ENDPOINT` when configured).
+  - `webhook`: Delegates provisioning and teardown to an external HTTP webhook.
+
+### `serviceConfig`
+Configures service-level deployment and Gateway API target settings.
+- **`serviceName`**: Target baseline Kubernetes `Service` name (used for GAMMA east-west mesh routing).
+- **`parentRef`**: Gateway API parent reference name. Supports explicit `Gateway/<name>` and `Service/<name>` disambiguation prefixes, the `divergedev.com/parent-kind: Gateway | Service` annotation, and automatic cluster `Gateway` lookup.
 
 ### `database`
 Configures the data layer isolation.
 - **`mode`**: Valid enums: `shared`, `schema`, `snapshot`, `fresh`.
-- **`connectionRef`**: Secret reference containing credentials to the baseline database.
+- **`connectionRef`**: Secret reference containing credentials to the baseline database (auto-generated as `diverge-db-env-<env>-<hash8>` when omitted in `schema` mode).
+- **`seedSource`**: Optional seed data source in `schema` mode (`public`, `schema:<name>`, or `configmap:<name>[/<key>]`) or source cluster name in `cnpg` `snapshot` mode.
 
 ### `lifecycle`
 Manages the environment lifespan.
