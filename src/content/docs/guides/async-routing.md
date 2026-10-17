@@ -1,15 +1,15 @@
 ---
 title: Async Routing Guide
-description: Configure Kafka, Temporal, Redis / Valkey, and webhook routing for preview environments
+description: Configure Kafka, Temporal, Redis / Valkey, S3 / GCS / MinIO object storage, and webhook routing for preview environments
 ---
 
-This guide walks you through setting up and configuring asynchronous routing in Diverge for event-driven workloads, background workers, caches/queues, and workflow orchestrators.
+This guide walks you through setting up and configuring asynchronous and storage routing in Diverge for event-driven workloads, background workers, caches/queues, object storage buckets, and workflow orchestrators.
 
 ---
 
 ## 1. Provider Setup
 
-Diverge supports Kafka, Temporal, Redis / Valkey, and custom Webhook async providers. Configure the controller with the appropriate flags and permissions for your environment.
+Diverge supports Kafka, Temporal, Redis / Valkey, S3 / GCS / MinIO Object Storage, and custom Webhook async providers. Configure the controller with the appropriate flags and permissions for your environment.
 
 ### Kafka Provider Setup
 
@@ -144,6 +144,49 @@ When deployed (without a custom `envVarMapping`), Diverge injects `DIVERGE_REDIS
 
 ---
 
+### S3 / GCS / MinIO Object Storage Prefix Isolation (`protocol: s3 | gcs | minio`)
+
+Shared staging buckets in Amazon S3, Google Cloud Storage (GCS), Cloudflare R2, or self-hosted MinIO can suffer from object key collisions and polluted test uploads when multiple preview environments run concurrently.
+
+Diverge's Object Storage provider (`protocol: s3`, `protocol: gcs`, or `protocol: minio`) isolates object storage operations within a shared bucket using deterministic object key prefixes (`previews/<env>/` for the `default` or empty target, or `previews/<env>/<target>/` for a named target) and automatically purges objects under the preview prefix on environment teardown.
+
+#### 1. Configure `.diverge.yaml` or `Environment` CR
+
+```yaml
+# .diverge.yaml
+version: "1"
+
+services:
+  media-service:
+    paths:
+      - "services/media/**"
+    image:
+      repository: "ghcr.io/myorg/media-service"
+      tag_template: "pr-{{.MR}}"
+    asyncRoutes:
+      - protocol: s3 # Supports: s3, gcs, or minio
+        target: uploads # "default" -> previews/<env>/, or "uploads" -> previews/<env>/uploads/
+```
+
+Or directly on the `Environment` Custom Resource:
+
+```yaml
+apiVersion: divergedev.com/v1alpha1
+kind: Environment
+metadata:
+  name: pr-456
+  namespace: default
+spec:
+  routing:
+    asyncRoutes:
+      - protocol: s3 # or gcs | minio
+        target: uploads
+```
+
+When deployed (without a custom `envVarMapping`), Diverge injects `DIVERGE_STORAGE_PREFIX=previews/pr-456/uploads/` (or `previews/pr-456/` when `target` is `"default"` or omitted), `S3_KEY_PREFIX`, `AWS_S3_PREFIX`, `GCS_KEY_PREFIX`, and optional `DIVERGE_STORAGE_BUCKET` and `DIVERGE_STORAGE_ENDPOINT` into the preview pod.
+
+---
+
 ### Webhook Provider Setup (Custom Infrastructure)
 
 For external brokers like AWS SQS/SNS, RabbitMQ, or GCP Pub/Sub, use the Webhook provider to delegate provisioning to an external service.
@@ -227,6 +270,12 @@ When async routes are provisioned, Diverge automatically injects standard enviro
 | **Redis / Valkey** | `REDIS_KEY_PREFIX` | `preview:<env-name>:` or `preview:<env-name>:<target>:` | Alias for `DIVERGE_REDIS_PREFIX` |
 | **Redis / Valkey** | `REDIS_NAMESPACE` | `preview:<env-name>` or `preview:<env-name>:<target>` | Prefix without trailing colon (for BullMQ `prefix` / Sidekiq namespace) |
 | **Redis / Valkey** | `REDIS_ADDR` | `<host>:<port>` | Resolved Redis/Valkey endpoint (injected when configured) |
+| **S3 / GCS / MinIO** | `DIVERGE_STORAGE_PREFIX` | `previews/<env-name>/` or `previews/<env-name>/<target>/` | Canonical object storage key prefix (`default` vs. named target) |
+| **S3 / GCS / MinIO** | `S3_KEY_PREFIX` | `previews/<env-name>/` or `previews/<env-name>/<target>/` | S3 / MinIO / R2 key prefix alias |
+| **S3 / GCS / MinIO** | `AWS_S3_PREFIX` | `previews/<env-name>/` or `previews/<env-name>/<target>/` | AWS S3 SDK key prefix alias |
+| **S3 / GCS / MinIO** | `GCS_KEY_PREFIX` | `previews/<env-name>/` or `previews/<env-name>/<target>/` | Google Cloud Storage key prefix alias |
+| **S3 / GCS / MinIO** | `DIVERGE_STORAGE_BUCKET` | `<bucket-name>` | Target object storage bucket (injected when configured) |
+| **S3 / GCS / MinIO** | `DIVERGE_STORAGE_ENDPOINT` | `<endpoint-url>` | Custom S3/MinIO/GCS endpoint URL (injected when configured) |
 | **Webhook** | Custom key-values | Specified by webhook response | Dynamic values returned by webhook endpoint |
 
 ### Custom Environment Variable Mappings
@@ -387,6 +436,39 @@ const key = resolveRedisKey('cart:user-42');
 from diverge_sdk import resolve_redis_key
 
 key = resolve_redis_key("cart:user-42")
+```
+
+---
+
+### S3 / GCS / MinIO Object Storage Key Prefix Resolution (`pkg/sdk`, `@divergedev/sdk`, `diverge-sdk`)
+
+Use the Diverge SDK's object storage helpers to automatically prefix object keys (`previews/<env>/<key>`) when running inside a preview pod or serving a preview-routed request, while leaving baseline object keys untouched when no preview environment is active:
+
+**Go (`github.com/divergedev/diverge/pkg/sdk`):**
+```go
+import "github.com/divergedev/diverge/pkg/sdk"
+
+objectKey := sdk.ResolveStorageKey(ctx, "avatars/user-1.png")
+// Preview "pr-456" -> "previews/pr-456/avatars/user-1.png"
+// Baseline         -> "avatars/user-1.png"
+```
+
+**Node.js / TypeScript (`@divergedev/sdk`):**
+```ts
+import { resolveStorageKey, storageKeyPrefix } from '@divergedev/sdk';
+
+const objectKey = resolveStorageKey('avatars/user-1.png');
+// Preview "pr-456" -> "previews/pr-456/avatars/user-1.png"
+// Baseline         -> "avatars/user-1.png"
+```
+
+**Python (`diverge-sdk`):**
+```python
+from diverge_sdk import resolve_storage_key
+
+object_key = resolve_storage_key("avatars/user-1.png")
+# Preview "pr-456" -> "previews/pr-456/avatars/user-1.png"
+# Baseline         -> "avatars/user-1.png"
 ```
 
 ---

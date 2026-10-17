@@ -32,10 +32,14 @@ To use L7 header-based routing with Istio Ambient:
 - **Waypoint Enrollment**: Ensure the namespace or target workloads are labeled with `istio.io/use-waypoint: <waypoint-name>` (or annotate the `Environment` with `divergedev.com/waypoint: <waypoint-name>`) so L7 traffic is redirected to the Waypoint proxy for policy and routing enforcement.
 - **Ingress Gateway**: For external traffic entering the cluster, configure an Ingress Gateway (such as Istio Ingress Gateway or a Gateway API Gateway) with appropriate listeners and routing to forward requests to the Waypoint proxy or services. Use `divergedev.com/gateway-namespace: <ns>` when the Gateway lives in a separate namespace from your baseline services.
 
-## Cross-Namespace `ReferenceGrant` & GAMMA East-West Routing
+## Cross-Namespace `ReferenceGrant`, GAMMA East-West Routing & `parentRef` Disambiguation
 
 - **Automatic Cross-Namespace `ReferenceGrant` (`spec.deploy.namespace: create`)**: When an `Environment` deploys its preview workload into an isolated namespace (`env.PreviewNamespace()`) that differs from the route namespace, `GatewayRouter` automatically reconciles a `gateway.networking.k8s.io/v1beta1` `ReferenceGrant` (`diverge-<env>-grant`) in `env.PreviewNamespace()` granting route-namespace `HTTPRoute` and `GRPCRoute` access to each changed preview `Service` (`<env>-<service>`).
 - **GAMMA East-West Service Mesh Routing (`--enable-gamma`)**: Pass `--enable-gamma` to `diverge-controller` so `PreviewGroupReconciler` configures child `Environment`s' `spec.serviceConfig.serviceName` with the baseline service name; `GatewayRouter` creates the GAMMA mesh `HTTPRoute` from `spec.serviceConfig.serviceName` (while `EnvironmentReconciler` does not take `--enable-gamma` and uses `spec.serviceConfig.serviceName` when set directly on the `Environment`).
+- **Gateway API `parentRef` Disambiguation (`Gateway` vs. `Service`)**: North-south ingress routes attach to a `Gateway` (`group: gateway.networking.k8s.io`, `kind: Gateway`), while east-west GAMMA routes attach to a Kubernetes `Service` (`group: ""`, `kind: Service`). So services named `payment-gateway` or Gateways named `prod-ingress` work seamlessly without ambiguous substring heuristics, `GatewayRouter` resolves `parentRef` kind in the following precedence order:
+  1. **Explicit `Kind/Name` Prefix (`Gateway/<name>` or `Service/<name>`)**: Set `spec.serviceConfig.parentRef` to `Gateway/prod-ingress` or `Service/payment-gateway`.
+  2. **Explicit Annotation (`divergedev.com/parent-kind: Gateway | Service`)**: Annotate the `Environment` with `divergedev.com/parent-kind: "Gateway"` or `divergedev.com/parent-kind: "Service"`.
+  3. **Automatic Cluster `Gateway` Lookup**: Queries the cluster for a `gateway.networking.k8s.io/v1` `Gateway` matching `parentRef` in the target gateway namespace (`divergedev.com/gateway-namespace` or the route namespace) before falling back to heuristic name matching (`gateway` / `waypoint`).
 
 ## Subdomain Routing
 
@@ -60,18 +64,33 @@ apiVersion: divergedev.com/v1alpha1
 kind: Environment
 metadata:
   name: pr-123
+  annotations:
+    divergedev.com/external-dns: "true"
+    divergedev.com/cluster-issuer: "letsencrypt-prod"
 spec:
   routing:
     mode: subdomain
     baseDomain: preview.example.com
 ```
 
+### Automatic `external-dns` & `cert-manager` Annotation Propagation
+
+On subdomain `HTTPRoute` and `GRPCRoute` resources, `GatewayRouter` automatically propagates DNS and TLS management annotations from the `Environment`:
+
+- **`external-dns`**:
+  - `divergedev.com/external-dns: "true"` propagates `external-dns.alpha.kubernetes.io/hostname: <env>.<baseDomain>` onto the generated route.
+  - `divergedev.com/external-dns-hostname: "<hostname>"` propagates an explicit custom hostname override (`external-dns.alpha.kubernetes.io/hostname: <hostname>`).
+  - `divergedev.com/external-dns-ttl: "60"` propagates `external-dns.alpha.kubernetes.io/ttl: "60"`.
+- **`cert-manager`**:
+  - `divergedev.com/cluster-issuer: "letsencrypt-prod"` propagates `cert-manager.io/cluster-issuer: "letsencrypt-prod"` onto the generated route.
+  - `divergedev.com/issuer: "<issuer-name>"` propagates `cert-manager.io/issuer: "<issuer-name>"`.
+
 ### DNS & TLS Requirements
 
 To support dynamic subdomains without manual DNS or certificate management:
 
-- **Wildcard DNS**: Configure a wildcard DNS record (e.g., `*.preview.example.com`) pointing to your Ingress Gateway's external IP or CNAME.
-- **Wildcard TLS Certificate**: Provision a wildcard certificate for `*.preview.example.com` (for example, using `cert-manager` with Let's Encrypt DNS01 challenges) and attach it to your Gateway listener.
+- **Wildcard DNS or `external-dns`**: Configure a wildcard DNS record (e.g., `*.preview.example.com`) pointing to your Ingress Gateway's external IP/CNAME, or annotate the `Environment` with `divergedev.com/external-dns: "true"`.
+- **Wildcard TLS Certificate or `cert-manager`**: Provision a wildcard certificate for `*.preview.example.com`, or annotate the `Environment` with `divergedev.com/cluster-issuer: "letsencrypt-prod"` when using `cert-manager`'s Gateway API shim.
 
 ### Routing Mode Comparison
 

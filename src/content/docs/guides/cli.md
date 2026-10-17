@@ -122,6 +122,28 @@ Live terminal dashboard (alias: `diverge watch`) displaying fleet FinOps hourly 
 ### `diverge validate`
 Validate `.diverge.yaml` against JSON Schema or print the embedded schema (`--print-schema`).
 
+### `diverge verify <env-name> [path-or-url]`
+Run a unified verification suite against a preview `Environment` or `PreviewGroup` combining Kubernetes workload diagnostics (`doctor`), routed HTTP readiness probes (with automatic `x-diverge-env` and W3C `baggage` injection), latency SLO assertions, response body substring checks, and optional baseline parity comparisons.
+- `--path` — HTTP path(s) to probe (repeatable, default: `["/"]`)
+- `--expect-status` — Expected HTTP status code (default: `200`; `0` allows any `2xx`/`3xx` status `< 400`)
+- `--max-latency` — Maximum acceptable preview response latency (e.g., `500ms`)
+- `--body-contains` — Substring that must appear in the preview HTTP response body
+- `--compare-baseline` — Probe baseline (without preview routing headers) and verify HTTP status code parity
+- `--fail-on-status-diff` — Fail verification if baseline and preview HTTP status codes differ when `--compare-baseline` is enabled (default: `true`)
+- `--skip-doctor` — Skip Kubernetes workload health diagnostics (`doctor`)
+- `--json` — Output machine-readable JSON verification report
+- `--base-url` — Override the base URL for HTTP verification
+- `-X, --method`, `-d, --data`, `-H, --header`, `--timeout` — Request method, body, custom headers, and per-request timeout (default: `15s`)
+
+```bash
+# Verify cluster workload health, /healthz endpoint, baseline status parity, and a 500ms latency SLO
+diverge verify pr-42 --path /healthz --compare-baseline --max-latency 500ms
+
+# Verify against an explicit gateway URL in CI and emit a JSON report
+diverge verify pr-42 /api/status --base-url https://preview.example.com --body-contains '"ok":true' --json
+```
+
 ### `diverge version`
 Print version.
+
 
