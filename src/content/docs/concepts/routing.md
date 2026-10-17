@@ -73,24 +73,26 @@ spec:
     baseDomain: preview.example.com
 ```
 
-### Automatic `external-dns` & `cert-manager` Annotation Propagation
+### Automatic `external-dns` & `cert-manager` Integration
 
-On subdomain `HTTPRoute` and `GRPCRoute` resources, `GatewayRouter` automatically propagates DNS and TLS management annotations from the `Environment`:
+When `mode: subdomain` is enabled, `GatewayRouter` automatically manages DNS annotations on generated `HTTPRoute` / `GRPCRoute` resources and TLS configuration on the target `Gateway`:
 
-- **`external-dns`**:
-  - `divergedev.com/external-dns: "true"` propagates `external-dns.alpha.kubernetes.io/hostname: <env>.<baseDomain>` onto the generated route.
-  - `divergedev.com/external-dns-hostname: "<hostname>"` propagates an explicit custom hostname override (`external-dns.alpha.kubernetes.io/hostname: <hostname>`).
-  - `divergedev.com/external-dns-ttl: "60"` propagates `external-dns.alpha.kubernetes.io/ttl: "60"`.
-- **`cert-manager`**:
-  - `divergedev.com/cluster-issuer: "letsencrypt-prod"` propagates `cert-manager.io/cluster-issuer: "letsencrypt-prod"` onto the generated route.
-  - `divergedev.com/issuer: "<issuer-name>"` propagates `cert-manager.io/issuer: "<issuer-name>"`.
+- **`external-dns` (Gateway API route sources)**:
+  - Configure ExternalDNS with the Gateway API route sources enabled (`--source=gateway-httproute` and/or `--source=gateway-grpcroute`).
+  - `divergedev.com/external-dns: "true"` sets `external-dns.alpha.kubernetes.io/hostname: <env>.<baseDomain>` on the generated `HTTPRoute` / `GRPCRoute` (alongside the route's `spec.hostnames` entry `<env>.<baseDomain>`).
+  - `divergedev.com/external-dns-hostname: "<hostname>"` sets an explicit custom hostname override (`external-dns.alpha.kubernetes.io/hostname: <hostname>`) and appends `<hostname>` to the route's `spec.hostnames`.
+  - `divergedev.com/external-dns-ttl: "60"` sets `external-dns.alpha.kubernetes.io/ttl: "60"` on the generated route.
+  - *Note on ExternalDNS versions*: ExternalDNS reads `spec.hostnames` natively on `HTTPRoute` / `GRPCRoute`; ExternalDNS `< v0.20` reads `external-dns.alpha.kubernetes.io/*` annotations by default, while ExternalDNS `v0.20+` reads them when `--annotation-prefix=external-dns.alpha.kubernetes.io/` is enabled.
+- **`cert-manager` (Gateway TLS & `Certificate` provisioning)**:
+  - Because `cert-manager`'s Gateway API integration watches `Gateway` listeners rather than `cert-manager.io/*` annotations on `HTTPRoute` or `GRPCRoute`, Diverge does not place `cert-manager.io/*` annotations on routes.
+  - `divergedev.com/cluster-issuer: "letsencrypt-prod"` (or namespace-scoped `divergedev.com/issuer: "<issuer-name>"`) propagates the corresponding `cert-manager.io/cluster-issuer` or `cert-manager.io/issuer` annotation onto the target `Gateway`, ensures an HTTPS listener for `*.<baseDomain>` (or `<env>.<baseDomain>`) referencing `<env>-tls`, and reconciles a `cert-manager.io/v1` `Certificate` resource (`<env>-tls`) in the Gateway namespace.
 
 ### DNS & TLS Requirements
 
 To support dynamic subdomains without manual DNS or certificate management:
 
-- **Wildcard DNS or `external-dns`**: Configure a wildcard DNS record (e.g., `*.preview.example.com`) pointing to your Ingress Gateway's external IP/CNAME, or annotate the `Environment` with `divergedev.com/external-dns: "true"`.
-- **Wildcard TLS Certificate or `cert-manager`**: Provision a wildcard certificate for `*.preview.example.com`, or annotate the `Environment` with `divergedev.com/cluster-issuer: "letsencrypt-prod"` when using `cert-manager`'s Gateway API shim.
+- **Wildcard DNS or `external-dns`**: Configure a wildcard DNS record (e.g., `*.preview.example.com`) pointing to your Ingress Gateway's external IP/CNAME, or annotate the `Environment` with `divergedev.com/external-dns: "true"` (with ExternalDNS running `--source=gateway-httproute` / `--source=gateway-grpcroute`).
+- **Wildcard TLS Certificate or `cert-manager`**: Provision a wildcard certificate for `*.preview.example.com`, or annotate the `Environment` with `divergedev.com/cluster-issuer: "letsencrypt-prod"` (or `divergedev.com/issuer`) so Diverge configures the target `Gateway` TLS listener and reconciles a `cert-manager.io/v1` `Certificate` (`<env>-tls`).
 
 ### Routing Mode Comparison
 

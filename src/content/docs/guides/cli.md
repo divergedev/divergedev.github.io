@@ -125,7 +125,7 @@ Validate `.diverge.yaml` against JSON Schema or print the embedded schema (`--pr
 ### `diverge verify <env-name> [path-or-url]`
 Run a unified verification suite against a preview `Environment` or `PreviewGroup` combining Kubernetes workload diagnostics (`doctor`), routed HTTP readiness probes (with automatic `x-diverge-env` and W3C `baggage` injection), latency SLO assertions, response body substring checks, and optional baseline parity comparisons.
 - `--path` — HTTP path(s) to probe (repeatable, default: `["/"]`)
-- `--expect-status` — Expected HTTP status code (default: `200`; `0` allows any `2xx`/`3xx` status `< 400`)
+- `--expect-status` — Expected HTTP status code (default: `0`, accepting any `2xx`/`3xx` status `< 400`; set e.g. `200` to require an exact status code)
 - `--max-latency` — Maximum acceptable preview response latency (e.g., `500ms`)
 - `--body-contains` — Substring that must appear in the preview HTTP response body
 - `--compare-baseline` — Probe baseline (without preview routing headers) and verify HTTP status code parity

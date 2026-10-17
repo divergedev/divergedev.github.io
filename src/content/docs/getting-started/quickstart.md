@@ -23,15 +23,18 @@ Go from zero to an isolated, header-routed **delta preview environment** in 90 s
 
 ### Option A — Local Playground (No Cluster Required)
 
-Spin up a local Kind/k3d cluster with Gateway API CRDs, Envoy Gateway, baseline services, and the Diverge operator pre-installed:
+Spin up a local Kind/k3d cluster with Gateway API CRDs, Envoy Gateway, baseline services, and the Diverge operator pre-installed. Run this from a separate terminal or temporary directory so your current shell stays in your application repository:
 
 ```bash
-# Clone the Diverge repo (or the 5-minute bank demo: https://github.com/divergedev/demo)
-git clone https://github.com/divergedev/diverge.git && cd diverge
-./scripts/playground.sh up
+# Bootstrap directly from the CLI anywhere:
+diverge init --provider auto
+
+# Or clone the Diverge repo into a temporary directory (or try the 5-minute bank demo: https://github.com/divergedev/demo):
+git clone https://github.com/divergedev/diverge.git /tmp/diverge
+/tmp/diverge/scripts/playground.sh up
 ```
 
-*(Alternatively, bootstrap directly from the CLI anywhere with `diverge init --provider auto`.)*
+Once the local cluster is running, switch back to **your own application repository checkout** for Steps 1–3 below.
 
 ### Option B — Existing Kubernetes Cluster
 
@@ -47,9 +50,10 @@ helm install diverge oci://ghcr.io/divergedev/charts/diverge \
 
 ## Step 1: Initialize `.diverge.yaml`
 
-Generate a starter configuration with `diverge init --config`, or create a schema-compliant `.diverge.yaml` at the root of your repository:
+From the root of **your application repository** (not the `/tmp/diverge` checkout), generate a starter configuration with `diverge init --config` or create a schema-compliant `.diverge.yaml`:
 
 ```bash
+cd /path/to/your-app-repo
 diverge init --config
 ```
 
@@ -159,7 +163,7 @@ When you are finished testing (or automatically when your PR merges), delete the
 diverge delete pr-42
 ```
 
-*(If you started the local playground in Option A, run `./scripts/playground.sh down` to remove the local cluster.)*
+*(If you started the local playground in Option A, run `/tmp/diverge/scripts/playground.sh down` — or `./scripts/playground.sh down` from the Diverge checkout — to remove the local cluster.)*
 
 ---
 

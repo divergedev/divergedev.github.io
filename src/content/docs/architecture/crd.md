@@ -28,12 +28,12 @@ Configures ingress, mesh, and asynchronous / storage traffic routing.
 - **`mode`**: The routing strategy. Valid enums: `header`, `namespace`, `subdomain`.
 - **`headerKey`**: The HTTP header key used for routing (validated against RFC 7230 token format).
 - **`headerValue`**: The HTTP header value to match.
-- **`baseDomain`**: Base domain used when `mode: subdomain` (e.g., `preview.example.com`). Supports automatic `external-dns` (`divergedev.com/external-dns: "true"` or `divergedev.com/external-dns-hostname`) and `cert-manager` (`divergedev.com/cluster-issuer`) annotation propagation onto generated `HTTPRoute` / `GRPCRoute` resources.
+- **`baseDomain`**: Base domain used when `mode: subdomain` (e.g., `preview.example.com`). Supports automatic `external-dns` (`divergedev.com/external-dns: "true"` or `divergedev.com/external-dns-hostname`) annotation propagation onto generated `HTTPRoute` / `GRPCRoute` resources and `cert-manager` (`divergedev.com/cluster-issuer` or `divergedev.com/issuer`) Gateway TLS and `Certificate` provisioning.
 - **`asyncRoutes`**: List of asynchronous and storage isolation routes (`protocol` + `target` + optional `envVarMapping`). Supported `protocol` values:
   - `kafka`: Provisions isolated topic (`<target>-<env>`) and consumer group (`KAFKA_TOPIC`, `KAFKA_CONSUMER_GROUP`, `KAFKA_BROKERS`).
   - `temporal`: Assigns isolated task queue (`TEMPORAL_TASK_QUEUE=<target>-<env>`, `TEMPORAL_NAMESPACE`).
   - `redis` / `valkey`: Isolates shared keyspaces via prefix (`DIVERGE_REDIS_PREFIX`, `REDIS_KEY_PREFIX`, `REDIS_NAMESPACE`, `REDIS_ADDR`) and evicts keys on teardown.
-  - `s3` / `gcs` / `minio`: Isolates shared object storage buckets via deterministic prefix (`DIVERGE_STORAGE_PREFIX=previews/<env>/` or `previews/<env>/<target>/`, `S3_KEY_PREFIX`, `AWS_S3_PREFIX`, `GCS_KEY_PREFIX`, `DIVERGE_STORAGE_BUCKET`, `DIVERGE_STORAGE_ENDPOINT`).
+  - `s3` / `gcs` / `minio`: Isolates shared object storage buckets via deterministic prefix (`DIVERGE_STORAGE_PREFIX=previews/<namespace>/<env>/` or `previews/<namespace>/<env>/<target>/`, `S3_KEY_PREFIX`, `AWS_S3_PREFIX`, `GCS_KEY_PREFIX`, plus `DIVERGE_STORAGE_BUCKET` and `DIVERGE_STORAGE_ENDPOINT` when configured).
   - `webhook`: Delegates provisioning and teardown to an external HTTP webhook.
 
 ### `serviceConfig`
