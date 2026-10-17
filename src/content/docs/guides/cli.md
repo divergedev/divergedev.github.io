@@ -62,6 +62,7 @@ Validate topology for cycles, orphans, and unreachable services.
 
 ### `diverge init`
 Initialize a `.diverge.yaml` configuration (`--config`) or bootstrap a local dev playground (`--provider auto|kind|k3d|existing`).
+- When `--config` is passed, `diverge init` automatically scans `package.json`, `go.mod`, `pyproject.toml`, `requirements.txt`, `atlas.hcl`, `docker-compose.yml`, and `migrations/` to detect PostgreSQL (`database.mode: schema`, `seed_source: public`) and async/storage dependencies (`redis`, `s3`/`gcs`, `kafka`, `temporal`).
 
 ### `diverge list`
 List all environments.
@@ -131,6 +132,7 @@ Run a unified verification suite against a preview `Environment` or `PreviewGrou
 - `--compare-baseline` — Probe baseline (without preview routing headers) and verify HTTP status code parity
 - `--fail-on-status-diff` — Fail verification if baseline and preview HTTP status codes differ when `--compare-baseline` is enabled (default: `true`)
 - `--skip-doctor` — Skip Kubernetes workload health diagnostics (`doctor`)
+- `--github-summary` — Write a Markdown verification scorecard table (plus Doctor diagnostics on failure) to `$GITHUB_STEP_SUMMARY` (or stdout if unset); when `GITHUB_ACTIONS=true`, failed checks also emit `::error::` workflow annotations
 - `--json` — Output machine-readable JSON verification report
 - `--base-url` — Override the base URL for HTTP verification
 - `-X, --method`, `-d, --data`, `-H, --header`, `--timeout` — Request method, body, custom headers, and per-request timeout (default: `15s`)
