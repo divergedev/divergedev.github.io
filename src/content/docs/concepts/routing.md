@@ -86,7 +86,7 @@ When `mode: subdomain` is enabled, `GatewayRouter` automatically manages DNS ann
 - **`cert-manager` (Gateway TLS & `Certificate` provisioning)**:
   - Because `cert-manager`'s Gateway API integration watches `Gateway` listeners rather than `cert-manager.io/*` annotations on `HTTPRoute` or `GRPCRoute`, Diverge does not place `cert-manager.io/*` annotations on routes.
   - `divergedev.com/cluster-issuer: "letsencrypt-prod"` (or namespace-scoped `divergedev.com/issuer: "<issuer-name>"`) reconciles a `cert-manager.io/v1` `Certificate` resource (`<env>-tls`) in the Gateway namespace, and propagates the corresponding `cert-manager.io/cluster-issuer` or `cert-manager.io/issuer` annotation onto the target `Gateway` when the `Gateway` is dedicated to that environment (`divergedev.com/environment: <env>` and `divergedev.com/managed-by: diverge`). Shared or platform-owned `Gateway` resources are not mutated by individual preview environments.
-  - Before using this flow, install `cert-manager` with Gateway API integration enabled for the installed version, ensure the Gateway API CRDs are installed before `cert-manager` starts (or restart `cert-manager` after installing them), and create the referenced `Issuer` or `ClusterIssuer`.
+  - Before using this flow, install `cert-manager` with Gateway API integration enabled for the installed version, ensure the Gateway API CRDs are installed before `cert-manager` starts (or restart `cert-manager` after installing them), and create the referenced `Issuer` in the `Gateway`'s namespace or the referenced cluster-scoped `ClusterIssuer`.
 
 ### DNS & TLS Requirements
 
