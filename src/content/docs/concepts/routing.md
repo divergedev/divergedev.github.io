@@ -85,14 +85,15 @@ When `mode: subdomain` is enabled, `GatewayRouter` automatically manages DNS ann
   - *Note on ExternalDNS versions*: ExternalDNS reads `spec.hostnames` natively on `HTTPRoute` / `GRPCRoute`; ExternalDNS `< v0.20` reads `external-dns.alpha.kubernetes.io/*` annotations by default, while ExternalDNS `v0.20+` reads them when `--annotation-prefix=external-dns.alpha.kubernetes.io/` is enabled.
 - **`cert-manager` (Gateway TLS & `Certificate` provisioning)**:
   - Because `cert-manager`'s Gateway API integration watches `Gateway` listeners rather than `cert-manager.io/*` annotations on `HTTPRoute` or `GRPCRoute`, Diverge does not place `cert-manager.io/*` annotations on routes.
-  - `divergedev.com/cluster-issuer: "letsencrypt-prod"` (or namespace-scoped `divergedev.com/issuer: "<issuer-name>"`) propagates the corresponding `cert-manager.io/cluster-issuer` or `cert-manager.io/issuer` annotation onto the target `Gateway`, ensures an HTTPS listener for `*.<baseDomain>` (or `<env>.<baseDomain>`) referencing `<env>-tls`, and reconciles a `cert-manager.io/v1` `Certificate` resource (`<env>-tls`) in the Gateway namespace.
+  - `divergedev.com/cluster-issuer: "letsencrypt-prod"` (or namespace-scoped `divergedev.com/issuer: "<issuer-name>"`) reconciles a `cert-manager.io/v1` `Certificate` resource (`<env>-tls`) in the Gateway namespace, and propagates the corresponding `cert-manager.io/cluster-issuer` or `cert-manager.io/issuer` annotation onto the target `Gateway` when the `Gateway` is dedicated to that environment (`divergedev.com/environment: <env>` and `divergedev.com/managed-by: diverge`). Shared or platform-owned `Gateway` resources are not mutated by individual preview environments.
+  - Before using this flow, install `cert-manager` with Gateway API integration enabled for the installed version, ensure the Gateway API CRDs are installed before `cert-manager` starts (or restart `cert-manager` after installing them), and create the referenced `Issuer` or `ClusterIssuer`.
 
 ### DNS & TLS Requirements
 
 To support dynamic subdomains without manual DNS or certificate management:
 
 - **Wildcard DNS or `external-dns`**: Configure a wildcard DNS record (e.g., `*.preview.example.com`) pointing to your Ingress Gateway's external IP/CNAME, or annotate the `Environment` with `divergedev.com/external-dns: "true"` (with ExternalDNS running `--source=gateway-httproute` / `--source=gateway-grpcroute`).
-- **Wildcard TLS Certificate or `cert-manager`**: Provision a wildcard certificate for `*.preview.example.com`, or annotate the `Environment` with `divergedev.com/cluster-issuer: "letsencrypt-prod"` (or `divergedev.com/issuer`) so Diverge configures the target `Gateway` TLS listener and reconciles a `cert-manager.io/v1` `Certificate` (`<env>-tls`).
+- **Wildcard TLS Certificate or `cert-manager`**: Provision a wildcard certificate for `*.preview.example.com`, or annotate the `Environment` with `divergedev.com/cluster-issuer: "letsencrypt-prod"` (or `divergedev.com/issuer`) so Diverge reconciles a `cert-manager.io/v1` `Certificate` (`<env>-tls`) (and updates dedicated environment `Gateway` annotations).
 
 ### Routing Mode Comparison
 
