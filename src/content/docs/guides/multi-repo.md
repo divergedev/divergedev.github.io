@@ -46,7 +46,7 @@ services:
       - "**"
     image:
       repository: ghcr.io/divergedev/demo-payments-api
-      tagTemplate: "pr-{{.MR}}"
+      tag_template: "pr-{{.MR}}"
 
 defaults:
   deploy:
@@ -54,7 +54,7 @@ defaults:
     namespace: same
   routing:
     mode: header
-    headerKey: x-preview-id
+    header_key: x-preview-id
 ```
 
 ## Try It

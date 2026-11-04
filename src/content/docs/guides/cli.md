@@ -7,8 +7,15 @@ The Diverge CLI provides tools to interact with your preview environments direct
 
 ## Commands
 
+### `diverge completion [bash|zsh|fish|powershell]`
+Generate shell autocompletion scripts with dynamic cluster-aware tab-completion for live `Environment` and `AgentTask` names.
+
 ### `diverge create`
 Create an environment from the current branch.
+- `--mr` — Merge/Pull Request ID
+- `--branch` — Override git branch name
+- `--ttl` — Environment time-to-live (e.g. `4h`, `24h`)
+- `--atlas-dir`, `--atlas-schema`, `--atlas-mode`, `--atlas-engine`, `--atlas-blocking` — Ariga Atlas schema migration bundling flags
 
 ### `diverge curl <env> [path]`
 Send an HTTP request routed to a preview `Environment` or `PreviewGroup` (automatically injecting `x-diverge-env` and W3C `baggage`).
@@ -32,10 +39,13 @@ Route cluster traffic to your local machine via an authenticated reverse tunnel.
 
 
 ### `diverge dev intercept <service>`
-Intercept a service.
+Intercept a service in a preview group.
 
 ### `diverge dev release <service>`
-Stop intercepting.
+Stop intercepting a service.
+
+### `diverge dev sessions`
+List active developer sessions and heartbeat leases across services in the cluster (alias: `diverge dev list`).
 
 ### `diverge diff`
 Detect which services changed relative to a base branch.
@@ -62,6 +72,7 @@ Validate topology for cycles, orphans, and unreachable services.
 
 ### `diverge init`
 Initialize a `.diverge.yaml` configuration (`--config`) or bootstrap a local dev playground (`--provider auto|kind|k3d|existing`).
+- When `--config` is passed, `diverge init` automatically scans `package.json`, `go.mod`, `pyproject.toml`, `requirements.txt`, `atlas.hcl`, `docker-compose.yml`, and `migrations/` to detect PostgreSQL (`database.mode: schema`, `seed_source: public`) and async/storage dependencies (`redis`, `s3`/`gcs`, `kafka`, `temporal`).
 
 ### `diverge list`
 List all environments.
@@ -110,8 +121,20 @@ Simulate request routing through the topology.
 - `--output` — Output format: text, mermaid, dot, json
 - `--live` — Use Prometheus for live topology
 
-### `diverge status`
-Show active envs and groups.
+### `diverge status [name]`
+Show active preview environments and groups.
+
+### `diverge task`
+Create and manage spec-driven autonomous AI developer tasks (`AgentTask` CRDs) in isolated Kubernetes sandboxes:
+- `diverge task init [--force]` — Scaffold `.diverge/agent.yaml` in your repository
+- `diverge task create "<objective>"` — Create an `AgentTask` (`--budget`, `--tokens`, `--iterations`, `--base-branch`, `--capabilities`, `--pool`, `--template`, `--dry-run`, `-o yaml|json`)
+- `diverge task list` — List `AgentTask` resources in the namespace
+- `diverge task status <name>` — Show phase (`Pending`, `Provisioning`, `Active`, `Pausing`, `Paused`, `Completed`, `Failed`), iteration progress, token/USD spend, and linked preview URL
+- `diverge task logs <name> [-f]` — Stream live execution logs from the sandbox pod
+- `diverge task guide <name> "<guidance>"` — Send real-time steering instructions (`divergedev.com/guidance`) delivered on the next metering heartbeat
+- `diverge task pause <name>` — Pause an active `AgentTask` (`spec.suspended: true`), revoke its Macaroon token, suspend its sandbox (`operatingMode: Suspended`), and hibernate its linked preview environment
+- `diverge task resume <name> [--budget +10.00] [--tokens 500000]` — Resume a paused `AgentTask` with optional additive budget bumps and mint a fresh Macaroon capability token
+- `diverge task delete <name>` — Delete an `AgentTask` and tear down its sandbox and linked preview
 
 ### `diverge top`
 Live terminal dashboard (alias: `diverge watch`) displaying fleet FinOps hourly and monthly burn rates, environment states (`💤 hibernated` when scaled to zero, `⚠️ drift` for active baseline-drifted environments, or `active`), `PreviewGroup` service counts, TTL countdowns, and `AgentTask` LLM token/cost spend.
@@ -131,6 +154,7 @@ Run a unified verification suite against a preview `Environment` or `PreviewGrou
 - `--compare-baseline` — Probe baseline (without preview routing headers) and verify HTTP status code parity
 - `--fail-on-status-diff` — Fail verification if baseline and preview HTTP status codes differ when `--compare-baseline` is enabled (default: `true`)
 - `--skip-doctor` — Skip Kubernetes workload health diagnostics (`doctor`)
+- `--github-summary` — Write a Markdown verification scorecard table (plus Doctor diagnostics on failure) to `$GITHUB_STEP_SUMMARY` (or stdout if unset); when `GITHUB_ACTIONS=true`, failed checks also emit `::error::` workflow annotations
 - `--json` — Output machine-readable JSON verification report
 - `--base-url` — Override the base URL for HTTP verification
 - `-X, --method`, `-d, --data`, `-H, --header`, `--timeout` — Request method, body, custom headers, and per-request timeout (default: `15s`)

@@ -33,31 +33,29 @@ server:
 Zitadel returns roles as a map rather than a flat list. Diverge v0.8.1+ handles this natively, extracting role keys directly from the claims structure.
 :::
 
-## CLI Authentication
+## CLI & MCP Authentication
 
-Developers can authenticate with the Diverge server using the `diverge login` command.
+Developers and AI coding agents authenticate with `diverge-server` using bearer tokens (`--token` or `DIVERGE_TOKEN`) or automatic `kubeconfig` credential fallback:
 
 ```bash
-# Authenticate using a token (OIDC or ServiceAccount)
-diverge login --server https://diverge.example.com --token <your-token>
-```
+# Mint a bound Kubernetes ServiceAccount token for diverge-server
+export DIVERGE_TOKEN="$(kubectl create token my-sa --audience diverge-server)"
 
-Once logged in, the CLI stores the credentials in a local context file, allowing subsequent commands to seamlessly communicate with the server.
+# Connect local dev tunnel or stdio MCP server
+diverge dev --service payments-api --server https://diverge.example.com
+diverge mcp --server-url https://diverge.example.com
+```
 
 ## CI/CD Authentication
 
-For automated pipelines (e.g., GitHub Actions, GitLab CI), it is recommended to use the `DIVERGE_TOKEN` environment variable. This avoids the need to run `diverge login` interactively.
+For automated pipelines (e.g., GitHub Actions, GitLab CI), provide `KUBECONFIG` (or `DIVERGE_TOKEN` when calling `diverge-server`):
 
 ```yaml
 # Example CI/CD step
 - name: Deploy Preview
-  env:
-    DIVERGE_TOKEN: ${{ secrets.DIVERGE_CI_TOKEN }}
   run: |
-    diverge preview create --server https://diverge.example.com -f .diverge.yaml
+    diverge preview create --name pr-${{ github.event.pull_request.number }} --service payments-api=ghcr.io/acme/payments:pr-${{ github.event.pull_request.number }}
 ```
-
-The token provided can be a long-lived Kubernetes ServiceAccount token with the necessary RBAC permissions to create and manage Diverge CRDs.
 
 ## CLI Tunnel Authentication (`diverge dev`)
 
@@ -69,12 +67,13 @@ Starting in `v0.10.0`, reverse tunnels created via `diverge dev` authenticate di
 
 When the Diverge ConnectRPC server is deployed behind an Ingress controller, API Gateway, or reverse proxy that terminates TLS, session cookies must be protected with the `Secure` flag.
 
-Diverge provides the `--secure-cookies` server flag (`server.secureCookies` in Helm values):
+Diverge provides the `--secure-cookies` server flag (`server.auth.secureCookies` in Helm values):
 
 ```yaml
 # values.yaml
 server:
-  secureCookies: "auto" # "auto" (default) | "true" | "false"
+  auth:
+    secureCookies: "auto" # "auto" (default) | "true" | "false"
 ```
 
 - **`auto`**: Inspects the `X-Forwarded-Proto` header. If `https`, sets `Secure; SameSite=Lax`. If plain `http` (such as local port-forwarding), omits `Secure` so developers aren't locked out.

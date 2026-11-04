@@ -1,49 +1,45 @@
-# Starlight Starter Kit: Basics
+# Diverge Documentation & Website (`divergedev.com`)
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+Official documentation and marketing site for **[Diverge](https://github.com/divergedev/diverge)** — the 100% open-source (Apache-2.0) Kubernetes Environment & Autonomous Agent Sandbox Engine.
 
-```
-npm create astro@latest -- --template starlight
-```
+- **Live Site**: [https://divergedev.com](https://divergedev.com)
+- **Main Repository**: [github.com/divergedev/diverge](https://github.com/divergedev/diverge)
+- **Framework**: [Astro](https://astro.build) + [Starlight](https://starlight.astro.build) + [Pagefind](https://pagefind.app)
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Project Structure
 
-## 🚀 Project Structure
-
-Inside of your Astro + Starlight project, you'll see the following folders and files:
-
-```
+```text
 .
-├── public/
+├── public/                 # Static assets & CLI installer (https://divergedev.com/install.sh)
 ├── src/
-│   ├── assets/
+│   ├── assets/             # Logos and images
 │   ├── content/
-│   │   └── docs/
-│   └── content.config.ts
-├── astro.config.mjs
-├── package.json
-└── tsconfig.json
+│   │   └── docs/           # Markdown & MDX documentation pages
+│   │       ├── index.mdx
+│   │       ├── overview.md
+│   │       ├── getting-started/
+│   │       ├── concepts/
+│   │       ├── guides/
+│   │       ├── architecture/
+│   │       └── blog/
+│   └── styles/
+│       └── custom.css      # Starlight theme & landing page styling
+├── astro.config.mjs        # Site & sidebar navigation config
+└── package.json
 ```
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+## Local Development
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+```bash
+# Install dependencies
+npm install
 
-Static assets, like favicons, can be placed in the `public/` directory.
+# Start local dev server at http://localhost:4321
+npm run dev
 
-## 🧞 Commands
+# Build static site and Pagefind search index to ./dist/
+npm run build
 
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+# Preview production build locally
+npm run preview
+```

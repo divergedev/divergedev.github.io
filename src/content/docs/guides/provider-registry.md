@@ -53,8 +53,11 @@ That's it — the controller will now accept `--routing-provider=linkerd`.
 
 The registry currently supports plugging in custom implementations for:
 
-- **Routing** (`routing.Router`) — How traffic is directed (e.g., Gateway API, Istio, Linkerd).
-- **Deployer** (`deployer.Deployer`) — How manifests are applied (e.g., DirectDeployer, ArgoCD, Knative).
-- **Notifier** (`notifier.Notifier`) — How MR/PR updates are communicated (e.g., GitHub, GitLab).
-- **Testing** (`testing.TestRunner`) — How integration tests are executed.
-- **Database** (`database.DatabaseProvider`) — How databases are provisioned for preview environments.
+- **Routing** (`routing.Router`) — How traffic is directed (`gateway`, `istio`, `noop`).
+- **Deployer** (`deployer.Deployer`) — How manifests are applied (`direct`, `argocd`, `knative`, `noop`).
+- **Database** (`database.DatabaseProvider`) — How databases are provisioned (`schema`, `cnpg`, `neon`, `cockroach`, `webhook`, `noop`).
+- **Sandbox** (`sandbox.SandboxProvider`) — How autonomous `AgentTask` sandboxes are provisioned and suspended (`agent-sandbox`, `pod` / `k8s-pod` with automatic fallback, `noop`).
+- **Feature Flags** (`features.FeatureFlagProvider`) — How per-preview OpenFeature flag overrides are managed (`configmap`, `flipt`, `flagsmith`, `unleash`, `noop`).
+- **Async & Storage** (`async.Provisioner`) — How message queues, workflows, caches, and object storage prefixes are isolated (`kafka`, `temporal`, `redis`/`valkey`, `s3`/`gcs`/`minio`, `webhook`, `CompositeProvisioner`).
+- **Notifier** (`notifier.Notifier`) — How MR/PR comments, slash commands, and commit statuses are communicated (`github`, `gitlab`, `noop`).
+- **Testing** (`testing.TestRunner`) — How post-deploy integration and visual regression tests are executed.

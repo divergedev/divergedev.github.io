@@ -13,13 +13,15 @@ Diverge is a Kubernetes-native engine that uses a single consolidated Docker ima
 2. **Proxy**: A lightweight layer-7 router that intercepts traffic, inspects RFC 7230 compliant headers, and dynamically routes requests to either the preview namespace or the shared baseline.
 3. **Activator Proxy**: A specialized reverse proxy that sits in front of scaled-to-zero preview environments. It tracks ready pods via a shared informer, routes to active pods directly, and falls back to the Knative activator to wake up dormant environments on-demand.
 4. **Webhook Handler**: An HTTP server that securely processes incoming GitHub and GitLab webhooks, executing strict payload validation before triggering the controller.
-5. **Server**: An optional ConnectRPC API server that provides a stateless CRD facade, enabling developer access without direct cluster credentials. It can be run as a separate binary.
-6. **CLI**: A robust developer tool (`diverge`) for creating, validating, and managing environments locally.
-7. **Status Reporter**: Posts commit status checks (`diverge/preview`) to GitLab and GitHub for merge gating. Validates commit SHAs against a hex-only regex to prevent path traversal.
+5. **Server**: An optional ConnectRPC API server that provides a stateless CRD facade (`Environment`, `PreviewGroup`, `AgentTask`), embedded React Web Dashboard, remote `/mcp` server, and live `POST /api/v1/agenttask/meter` budget governance over HTTPS (`:8443`) and in-cluster HTTP (`:8080`).
+6. **Agent Runner (`cmd/agent-runner`)**: The reference autonomous agent sandbox entrypoint (`ghcr.io/divergedev/agent-runner`) that authenticates via Macaroon capability tokens, clones `DIVERGE_REPO_URL`, runs a metered build-verify-fix loop against the linked preview environment, and pushes verified fixes.
+7. **CLI**: A developer tool (`diverge`) for creating, validating, verifying, and managing preview environments and `AgentTask` sandboxes locally or in CI.
+8. **Status Reporter**: Posts commit status checks (`diverge/preview`) to GitLab and GitHub for merge gating. Validates commit SHAs against a hex-only regex to prevent path traversal.
 
 ## Security Architecture Highlights
 
 Diverge is built with a **Security First** mindset:
+- **Attenuated Macaroon Capability Tokens & Sandbox NetworkPolicies**: Autonomous `AgentTask` sandboxes authenticate with HMAC-SHA256 chained Macaroons (`task_id`, `namespace`, `repo`, `branch`, `tools`, `models`, `max_cost_usd`, `max_tokens`, `expires`, `nonce`) and are isolated by `diverge-sandbox-isolation` `NetworkPolicy` rules blocking cloud metadata (`169.254.169.254/32`), private RFC1918 ranges, and direct Kubernetes API access.
 - **RBAC-Scoped Client**: The controller operates with the minimum required permissions necessary to manage specific namespaces and resources.
 - **Constant-Time Secret Comparison**: Webhook secrets are validated securely to prevent timing attacks.
 - **Path Traversal Prevention**: Input validation guards against directory traversal in GitHub/GitLab webhook handling.

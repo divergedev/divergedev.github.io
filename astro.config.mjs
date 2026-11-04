@@ -8,7 +8,7 @@ export default defineConfig({
     mermaid(),
     starlight({
       title: 'Diverge',
-      description: 'Open-source environment-as-a-service for Kubernetes. Delta deployments, header-based routing, and automatic teardown.',
+      description: '100% open-source (Apache-2.0) Kubernetes Environment & Autonomous Agent Sandbox Engine. Delta deployments, scale-to-zero, header/cookie routing, and Macaroon-governed AI agent sandboxes.',
       logo: {
         dark: './src/assets/logo-dark.png',
         light: './src/assets/logo-light.png',

@@ -1,26 +1,56 @@
 ---
 title: Installation
-description: Install Diverge
+description: Install the Diverge CLI and Kubernetes Operator via Helm
 ---
 
-Diverge provides a single consolidated Docker image containing both the controller and the proxy components. The image is built on a `distroless nonroot` base for enhanced security. You can select which component to run using the Kubernetes `command`.
+Diverge consists of 6 core binaries built on a hardened `distroless nonroot` base:
+- **`diverge-controller`** — Kubernetes operator reconciling `Environment`, `PreviewGroup`, and `AgentTask` CRDs
+- **`diverge-server`** — ConnectRPC API server (`:8443` HTTPS and `:8080` in-cluster HTTP), `/mcp` endpoint, LLM metering (`POST /api/v1/agenttask/meter`), and embedded React Web Dashboard
+- **`diverge-proxy`** — L7 header/subdomain router and `<diverge-toolbar>` preview banner injector
+- **`activator-proxy`** — Scale-to-zero cold-start wake-up proxy with `202 Accepted` browser splash screen
+- **`diverge-agent-runner`** (`ghcr.io/divergedev/agent-runner`) — Reference autonomous sandbox runner with Macaroon metering and build-verify-fix loop
+- **`diverge`** — Developer CLI and local `stdio` MCP server (`diverge mcp`)
 
-## Helm Chart
+## Helm Chart (Kubernetes Operator)
 
-The recommended way to install Diverge is using the official Helm chart:
+The recommended way to install Diverge on a Kubernetes cluster is using the official OCI Helm chart:
 
 ```bash
-helm install diverge oci://ghcr.io/divergedev/charts/diverge --namespace diverge-system --create-namespace
+helm install diverge oci://ghcr.io/divergedev/charts/diverge \
+  --namespace diverge-system \
+  --create-namespace
 ```
 
-### Deploying the ConnectRPC Server
+### Production Installation (Server, Web Dashboard & AgentTask Sandboxes)
 
-To enable the ConnectRPC server for API access without `kubectl`, configure your `values.yaml`:
+To enable the ConnectRPC server, embedded Web Dashboard, autonomous `AgentTask` sandboxes with shared Macaroon capability keys, and admission webhooks, create a shared Macaroon root key secret and configure `values.yaml`:
+
+```bash
+kubectl create namespace diverge-system
+kubectl create secret generic diverge-macaroon-key \
+  -n diverge-system \
+  --from-literal=root-key="$(openssl rand -hex 32)"
+```
 
 ```yaml
 # values.yaml
 server:
   enabled: true
+  dashboard:
+    enabled: true
+
+sandbox:
+  enabled: true
+  provider: agent-sandbox # or "pod" ("k8s-pod") when agent-sandbox CRDs are not installed
+  macaroonSecretRef:
+    name: diverge-macaroon-key
+    key: root-key
+
+webhook:
+  validatingWebhook:
+    enabled: true
+  admissionPolicy:
+    enabled: true
 ```
 
 Then upgrade or install the chart:
@@ -32,33 +62,33 @@ helm upgrade --install diverge oci://ghcr.io/divergedev/charts/diverge \
   -f values.yaml
 ```
 
-## Script Download
+## CLI Installation
 
-You can quickly install the latest Diverge CLI using our install script:
+Install the latest `diverge` CLI using the official install script:
 
 ```bash
 curl -fsSL https://divergedev.com/install.sh | sh
 ```
 
-If you prefer to inspect the script before executing, the following displays the digest for manual comparison against the release notes:
+If you prefer to inspect the script before executing, download and verify it first:
 
 ```bash
-curl -fsSL -o install.sh https://raw.githubusercontent.com/divergedev/diverge/v0.15.0/install.sh
+curl -fsSL -o install.sh https://raw.githubusercontent.com/divergedev/diverge/main/install.sh
 sha256sum install.sh
-# Compare the output above against the digest published in the GitHub release notes
 sh install.sh
 ```
 
-## Binary Download
-
-Download the Diverge CLI from [GitHub Releases](https://github.com/divergedev/diverge/releases/latest).
-
-## Docker Image
-
-The Docker image is available on GitHub Container Registry:
+Or install directly with Go 1.26+:
 
 ```bash
-docker pull ghcr.io/divergedev/diverge:latest
+go install github.com/divergedev/diverge/cmd/diverge@latest
 ```
 
-Diverge is built using Go 1.26.
+## Binary Download & Container Images
+
+- Pre-built CLI binaries for macOS and Linux (`amd64` / `arm64`): [GitHub Releases](https://github.com/divergedev/diverge/releases/latest)
+- Container images on GitHub Container Registry:
+  ```bash
+  docker pull ghcr.io/divergedev/diverge:latest
+  docker pull ghcr.io/divergedev/agent-runner:latest
+  ```

@@ -21,13 +21,13 @@ Enable the Kafka provider in your Helm values or controller flags:
 
 ```yaml
 # Helm values.yaml
+async:
+  provider: kafka
 controller:
-  asyncProvider: kafka
-  kafka:
-    brokers:
-      - "kafka-broker.kafka.svc.cluster.local:9092"
-    partitions: 3
-    replicationFactor: 1
+  extraArgs:
+    - "--kafka-brokers=kafka-broker.kafka.svc.cluster.local:9092"
+    - "--kafka-partitions=3"
+    - "--kafka-replication-factor=1"
 ```
 
 Or via CLI flags on `diverge-controller`:
@@ -70,10 +70,11 @@ The Temporal provider assigns preview-scoped task queues. Because Temporal autom
 
 ```yaml
 # Helm values.yaml
+async:
+  provider: temporal
 controller:
-  asyncProvider: temporal
-  temporal:
-    namespace: "default"
+  extraArgs:
+    - "--temporal-namespace=default"
 ```
 
 Or via CLI flags on `diverge-controller`:
@@ -195,10 +196,11 @@ For external brokers like AWS SQS/SNS, RabbitMQ, or GCP Pub/Sub, use the Webhook
 
 ```yaml
 # Helm values.yaml
+async:
+  provider: webhook
 controller:
-  asyncProvider: webhook
-  webhook:
-    endpoint: "https://async-provisioner.infra.svc.cluster.local:8443/provision"
+  extraArgs:
+    - "--async-webhook-endpoint=https://async-provisioner.infra.svc.cluster.local:8443/provision"
 ```
 
 > **Note:** Use HTTPS for webhook endpoints in production. HTTP (`http://`) should only be used in trusted local development environments.

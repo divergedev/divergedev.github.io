@@ -17,7 +17,7 @@ Diverge's feature management operates across two decoupled planes:
 ┌─────────────────────────────────────────────────────────────┐
 │ Control Plane (Diverge Controller)                         │
 │                                                             │
-│  diverge.yaml ──► FeatureProvider.Provision()               │
+│  .diverge.yaml ──► FeatureProvider.Provision()              │
 │                        │                                    │
 │                        ▼                                    │
 │        ┌───────────────────────────────┐                    │
@@ -53,12 +53,12 @@ Diverge's feature management operates across two decoupled planes:
 
 ---
 
-## Configuring `diverge.yaml`
+## Configuring `.diverge.yaml`
 
 Feature overrides can be declared globally, overridden per environment type, or injected on-demand via pull request labels:
 
 ```yaml
-# diverge.yaml
+# .diverge.yaml
 version: "1"
 
 defaults:

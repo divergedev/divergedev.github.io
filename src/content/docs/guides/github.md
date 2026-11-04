@@ -10,10 +10,7 @@ Diverge provides first-class GitHub integration for automatic preview environmen
 Install the Diverge controller with GitHub notifier enabled:
 
 ```bash
-helm repo add diverge https://divergedev.github.io/diverge
-helm repo update
-
-helm install diverge diverge/diverge \
+helm install diverge oci://ghcr.io/divergedev/charts/diverge \
   --namespace diverge-system \
   --create-namespace \
   --set notifierProvider=github \
@@ -63,7 +60,7 @@ GitHub webhook payloads are validated using HMAC-SHA256 signature verification (
 | `pull_request`: `opened`, `reopened` | Creates `Environment` / `PreviewGroup` CR |
 | `pull_request`: `synchronize` (new push) | Updates the CR with new commit SHA |
 | `pull_request`: `closed` | Deletes the CR (triggers teardown) |
-| `issue_comment`: `created` | Parses `/diverge` slash commands on PRs (`preview`, `fix`, `extend-ttl`, `teardown`, `pause`, `resume`) |
+| `issue_comment`: `created` | Parses `/diverge` slash commands on PRs (`preview`, `fix`, `guide`, `budget`, `status`, `help`, `extend-ttl`, `teardown`, `pause`, `resume`) |
 
 ---
 
@@ -74,11 +71,15 @@ When `Issue comments` (`issue_comment`) events are delivered to `/github-webhook
 | Slash Command | Action |
 |---------------|--------|
 | `/diverge preview` | Provisions or refreshes the `Environment` for the Pull Request (`pr-<number>`) |
-| `/diverge fix <objective>` | Spawns an autonomous `AgentTask` (`fix-pr-<number>`) with `spec.createPreview: true` and your custom objective (defaults to fixing PR issues) |
+| `/diverge fix <objective>` | Spawns an autonomous `AgentTask` (`fix-pr-<number>`) with `divergedev.com/preview-enabled: "true"` and your custom objective (defaults to fixing PR issues) |
+| `/diverge guide <hint>` | Sends live steering guidance (`divergedev.com/guidance`) delivered to the active agent on its next metering heartbeat |
+| `/diverge budget [+$budget] [tokens]` | Bumps the active `AgentTask`'s USD and/or token budget without changing suspension state |
+| `/diverge status` | Posts an immediate Markdown summary of active `AgentTask`s and linked preview environments |
+| `/diverge help` | Displays the interactive slash command reference table |
 | `/diverge extend-ttl [duration]` | Extends the preview environment TTL (e.g. `/diverge extend-ttl 4h`, defaults to `24h`) |
 | `/diverge teardown` | Immediately deletes the `Environment` (`pr-<number>`) and `PreviewGroup` (`mr-<number>`) for the PR |
-| `/diverge pause` | Suspends the active `AgentTask` (`fix-pr-<number>`) by setting `spec.suspended: true` and revoking its Macaroon token |
-| `/diverge resume` | Resumes a paused `AgentTask` (`fix-pr-<number>`) by setting `spec.suspended: false` and minting a fresh Macaroon token |
+| `/diverge pause` | Suspends the active `AgentTask` (`fix-pr-<number>`) by setting `spec.suspended: true`, revoking its Macaroon token, and hibernating its linked preview |
+| `/diverge resume [+$budget] [tokens]` | Resumes a paused `AgentTask` (`fix-pr-<number>`) by setting `spec.suspended: false`, optionally bumping budget, and minting a fresh Macaroon token |
 
 :::caution[Collaborator Authorization]
 For security, Diverge verifies the commenter's `author_association` before executing any slash command. Only users with `OWNER`, `MEMBER`, or `COLLABORATOR` association on the repository are permitted to run `/diverge` commands; comments from untrusted external users on public repositories are ignored.
@@ -88,9 +89,9 @@ For security, Diverge verifies the commenter's `author_association` before execu
 
 ## 3. GitHub Actions Workflow
 
-### Turnkey Composite Action (`divergedev/diverge@v0.15.0` — Recommended)
+### Turnkey Composite Action (`divergedev/diverge@v0.18.0` — Recommended)
 
-Use the official `divergedev/diverge@v0.15.0` composite GitHub Action (defined in the root [`action.yml`](https://github.com/divergedev/diverge/blob/main/action.yml) of `divergedev/diverge`) to validate `.diverge.yaml`, run `diverge diff`, deploy a delta `PreviewGroup` for only modified microservices, and pass routing headers directly into Playwright or Cypress E2E tests:
+Use the official `divergedev/diverge@v0.18.0` composite GitHub Action (defined in the root [`action.yml`](https://github.com/divergedev/diverge/blob/main/action.yml) of `divergedev/diverge`) to validate `.diverge.yaml`, run `diverge diff`, deploy a delta `PreviewGroup` for only modified microservices, run `diverge verify` SLO/baseline checks, and pass routing headers directly into Playwright or Cypress E2E tests:
 
 ```yaml
 name: Diverge Preview Environment
@@ -118,13 +119,17 @@ jobs:
 
       - name: Deploy Diverge Delta Preview
         id: diverge
-        uses: divergedev/diverge@v0.15.0
+        uses: divergedev/diverge@v0.18.0
         with:
           action: deploy
           kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
           image-registry: ghcr.io/acme
           base-url: https://staging.example.com
           wait: "true"
+          verify: "true"
+          verify-path: "/healthz"
+          verify-compare-baseline: "true"
+          verify-max-latency: "500ms"
 
       - name: Install Playwright Dependencies
         if: steps.diverge.outputs.skipped != 'true'
@@ -145,7 +150,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: divergedev/diverge@v0.15.0
+      - uses: divergedev/diverge@v0.18.0
         with:
           action: teardown
           kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
@@ -166,7 +171,7 @@ export default defineConfig({
 });
 ```
 
-#### `divergedev/diverge@v0.15.0` Inputs
+#### `divergedev/diverge@v0.18.0` Inputs
 
 | Input | Default | Description |
 | :--- | :--- | :--- |
@@ -186,9 +191,13 @@ export default defineConfig({
 | `base-url` | `""` | Optional staging/gateway base URL to construct a shareable `?_diverge_env=` preview URL |
 | `wait` | `false` | Wait for `PreviewGroup` `Ready` condition before completing |
 | `wait-timeout` | `180s` | Timeout when waiting for `PreviewGroup` readiness |
+| `verify` | `false` | Run `diverge verify` after deployment to validate workload health, HTTP readiness, and latency SLOs |
+| `verify-path` | `/` | HTTP path to probe when `verify` is `"true"` |
+| `verify-compare-baseline` | `false` | Compare preview HTTP status against unrouted baseline when `verify` is `"true"` |
+| `verify-max-latency` | `""` | Maximum allowed preview response latency when `verify` is `"true"` (e.g. `500ms`) |
 | `dry-run` | `false` | Render `PreviewGroup` manifest without applying to Kubernetes |
 
-#### `divergedev/diverge@v0.15.0` Outputs
+#### `divergedev/diverge@v0.18.0` Outputs
 
 | Output | Example | Description |
 | :--- | :--- | :--- |
@@ -346,7 +355,7 @@ To pin a specific version:
 ```yaml
 - uses: divergedev/setup-diverge@v1
   with:
-    version: '0.8.2'
+    version: '0.18.0'
 ```
 
 It resolves the latest release via GitHub API, caches the binary per OS/arch/version using `actions/cache`, and adds `diverge` to `PATH`.

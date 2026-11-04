@@ -7,18 +7,19 @@ The Diverge ConnectRPC Server provides a robust API foundation for interacting w
 
 ## Stateless Facade Pattern
 
-The Diverge Server is designed as a **stateless facade**. It does not have its own database or local storage. Instead, the Kubernetes Custom Resource Definitions (CRDs)—such as `Environment` and `PreviewGroup`—serve as the absolute single source of truth. The server simply translates ConnectRPC requests into Kubernetes API calls on behalf of the authenticated user.
+The Diverge Server is designed as a **stateless facade**. It does not have its own database or local storage. Instead, the Kubernetes Custom Resource Definitions (CRDs)—`Environment`, `PreviewGroup`, and `AgentTask`—serve as the absolute single source of truth. The server simply translates ConnectRPC requests into Kubernetes API calls on behalf of the authenticated user or sandbox capability token.
 
 ## ConnectRPC Services & HTTP Endpoints
 
-The API is structured around several core services and endpoints:
+The server listens on `:8443` (ConnectRPC / HTTPS / Web Dashboard) and `:8080` (`http-compat` in-cluster HTTP endpoint for `DIVERGE_MCP_URL` and `DIVERGE_METER_URL`), exposing:
 
-- **Environment Service**: Manages the lifecycle of individual `Environment` resources (create, list, get, delete, extend TTL, list/retry hooks).
-- **PreviewGroup Service**: Manages `PreviewGroup` resources, which orchestrate multiple environments for a single MR/PR.
-- **Cluster Service**: Provides cluster-level metadata and health information.
-- **Auth Service**: Handles authentication verification, OIDC browser login (`/auth/login`, `/auth/callback`), and identity endpoints.
-- **Remote MCP Endpoint (`/mcp`)**: Serves Model Context Protocol (MCP) JSON-RPC tools over HTTP for IDE and agent integrations.
-- **AgentTask Metering Endpoint (`POST /api/v1/agenttask/meter`)**: Receives live LLM `tokensUsed` and `costUSD` reports from autonomous `AgentTask` sandboxes, enforces Macaroon `allowed_models`, `max_cost_usd`, and `max_tokens` caveats as well as `budgetUSD` and `budgetTokens`, and auto-pauses tasks (`429 Too Many Requests`) when budgets are exceeded.
+- **Environment Service (`EnvironmentService`)**: Manages the lifecycle of individual `Environment` resources (create, list, get, update, delete, extend TTL, list/retry hooks).
+- **PreviewGroup Service (`PreviewGroupService`)**: Manages `PreviewGroup` resources, which orchestrate multi-service delta environments for a single MR/PR.
+- **AgentTask Service (`AgentTaskService`)**: Manages autonomous `AgentTask` sandboxes (create, get, list, delete, pause, resume with budget bumps, live steering guidance, and pod log streaming).
+- **Cluster Service (`ClusterService`)**: Provides cluster-level metadata, topology graphs, and health information.
+- **Auth Service (`AuthService`)**: Handles authentication verification, OIDC browser login (`/auth/login`, `/auth/callback`), and identity endpoints.
+- **Remote MCP Endpoint (`POST /mcp`)**: Serves Model Context Protocol (MCP) JSON-RPC tools over HTTP for IDE and in-cluster agent integrations.
+- **AgentTask Metering Endpoint (`POST /api/v1/agenttask/meter`)**: Receives idempotent (`requestId` deduplicated via `status.lastMeterRequestIds`) LLM `tokensUsed`, `costUSD`, and `iteration` heartbeats from autonomous `AgentTask` sandboxes, returns live human steering `guidance` and `previewUrl`, enforces Macaroon `allowed_models` (including prefix wildcards like `claude-*`), `max_cost_usd`, and `max_tokens` caveats as well as `budgetUSD`, `budgetTokens`, and `maxIterations`, and auto-pauses tasks (`429 Too Many Requests`) when budgets are exceeded.
 
 ## Streaming Capabilities
 
