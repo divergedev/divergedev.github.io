@@ -157,7 +157,7 @@ Use the step buttons below (or press <kbd>←</kbd> / <kbd>→</kbd> when focuse
           <span>CLI Diff &amp; Controller Reconciliation</span>
           <code>67% Compute Saved</code>
         </div>
-        <pre class="dv-console-pre" id="dv-s2-cli">$ diverge diff --base origin/main --head feat/instant-payouts
+        <pre class="dv-console-pre" id="dv-s2-cli">$ diverge diff --base origin/main
 Changed files (2):
   M services/checkout-api/main.go
   A services/checkout-api/migrations/20260902_add_instant_payouts.sql

@@ -29,7 +29,7 @@ Diverge uses standard `controller-runtime` metrics for tracking reconcile loops 
 
 ## Cost Estimation, Idle Hibernation, Namespace Quotas, & Baseline Drift
 
-The controller continuously estimates the hourly cloud cost of each `Environment` (`diverge_environment_estimated_hourly_cost_usd`) using actual `spec.deploy.resources.cpuRequest` (`$0.031611/vCPU-hr`) and `memoryRequest` (`$0.004237/GiB-hr`) when specified (falling back to `$0.025/hr` per default pod replica) plus isolated database overhead (`$0.05/hr` for `cnpg`, `$0.02/hr` for `snapshot`/`fresh`, `$0.005/hr` for `schema`).
+The controller continuously estimates the hourly cloud cost of each `Environment` (`diverge_environment_estimated_hourly_cost_usd`) using actual `spec.deploy.resources.cpuRequest` (`$0.04/vCPU-hr`) and `memoryRequest` (`$0.004/GiB-hr`) when specified (falling back to `0.25 vCPU` + `0.5 GiB` = `$0.012/hr` per default pod replica) plus isolated database overhead (`$0.10/hr` for `cnpg`/`snapshot`/`fresh`, `$0.01/hr` for `schema`).
 
 - **Idle Hibernation (`divergedev.com/hibernate-after`)**: Annotating an `Environment` with `divergedev.com/hibernate-after: "30m"` scales managed preview `Deployment`s and `StatefulSet`s down to `0` replicas, marks the environment `divergedev.com/hibernated: "true"`, emits a `Hibernated` Kubernetes Event, and zeroes active compute cost once no traffic has been observed since `divergedev.com/last-traffic-at` (or `status.createdAt`).
 - **Namespace Quotas & FinOps LRU Auto-Hibernation**: Platform teams can annotate any Kubernetes `Namespace` to enforce hard FinOps budgets and cluster capacity guardrails:

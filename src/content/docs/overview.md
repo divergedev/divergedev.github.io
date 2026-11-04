@@ -8,14 +8,15 @@ Diverge is an open-source environment-as-a-service engine for Kubernetes. It all
 ![Diverge CLI Quickstart Session](/images/terminal-quickstart-demo.svg)
 
 ## Who is it for?
-- **Platform Engineers & DevOps:** Eliminate duplicate staging clusters and reduce cloud costs by using shared baselines.
-- **Developers:** Get instant preview environments for every pull request without waiting for CI pipelines or staging slots.
+- **Platform Engineers & DevOps:** Eliminate duplicate staging clusters and reduce cloud costs by 90%+ using shared baselines, scale-to-zero hibernation, and FinOps namespace quotas.
+- **Developers:** Get instant delta preview environments for every pull request without waiting for full-stack CI deploys or contested staging slots.
+- **AI Engineers & Autonomous Agents:** Run spec-driven coding agents (`AgentTask` / `diverge task`) in isolated `gvisor` / `kata` / `agent-sandbox` pods with attenuated Macaroon capability tokens, automatic linked preview environments, and live LLM cost/token metering.
 
 ## Key Concepts
 
 - **Environment CRD:** Declarative Kubernetes resource defining a preview environment.
-- **Autonomous Agent Sandboxes (`AgentTask`):** Isolated Kubernetes sandboxes (`gvisor` / `kata` / `agent-sandbox`) with attenuated Macaroon capability tokens, automatic linked preview environments, and live LLM token/cost metering (`POST /api/v1/agenttask/meter`).
-- **Interactive PR/MR Slash Commands:** Trigger previews, extend TTLs, or dispatch autonomous AI fixes directly from GitHub/GitLab comments (`/diverge preview`, `/diverge fix`, `/diverge extend-ttl`, `/diverge teardown`, `/diverge pause`, `/diverge resume`).
+- **Autonomous Agent Sandboxes (`AgentTask`):** Isolated Kubernetes sandboxes (`gvisor` / `kata` / `agent-sandbox` / `pod`) with attenuated Macaroon capability tokens, automatic linked preview environments (`divergedev.com/preview-enabled: "true"`), and idempotent live LLM token/cost metering (`POST /api/v1/agenttask/meter`).
+- **Interactive PR/MR Slash Commands:** Trigger previews, extend TTLs, steer active agents, or adjust LLM budgets directly from GitHub/GitLab comments (`/diverge preview`, `/diverge fix`, `/diverge guide`, `/diverge budget`, `/diverge status`, `/diverge extend-ttl`, `/diverge teardown`, `/diverge pause`, `/diverge resume`).
 - **Delta Deployments:** Deploy only what has changed instead of an entire microservice stack.
 - **Routing Modes:** Uses header-based or subdomain routing to share baseline environments.
 - **Security Hardened:** Macaroon capability tokens, finalizer-based teardown, RFC 7230 header validation, path traversal prevention, and constant-time secret comparison.
@@ -55,8 +56,10 @@ Diverge is rigorously tested across packages to ensure robust preview environmen
 
 ## Recently Shipped
 
-- **Autonomous Agent Sandboxes (`AgentTask`)** — Isolated coding agent pods with Macaroon capability tokens, automatic linked preview environments (`spec.createPreview: true`), and live LLM cost/token metering (`POST /api/v1/agenttask/meter`)
-- **Interactive PR/MR Slash Commands** — Manage environments and trigger AI fixes via `/diverge preview`, `/diverge fix`, `/diverge extend-ttl`, `/diverge teardown`, `/diverge pause`, and `/diverge resume`
+- **Production AgentTask Sandboxes & `diverge task` CLI (`v0.19`)** — `.diverge/agent.yaml` repository config, `diverge task init|create|status|list|logs|guide|pause|resume|delete`, `SandboxSuspender` pod suspension + linked preview hibernation, and idempotent `requestId` LLM metering returning live `guidance` and `previewUrl`
+- **Unified CI Verification & Full-Stack Data Isolation (`v0.18`)** — `diverge verify` SLO & baseline parity gate with `$GITHUB_STEP_SUMMARY`, S3/GCS/MinIO object storage prefix isolation, Redis/Valkey keyspace isolation, and topological PostgreSQL FK/view cloning
+- **Autonomous Agent Sandboxes (`AgentTask`)** — Isolated coding agent pods with Macaroon capability tokens, automatic linked preview environments (`divergedev.com/preview-enabled: "true"`), and live LLM cost/token metering (`POST /api/v1/agenttask/meter`)
+- **Interactive PR/MR Slash Commands** — Manage environments, steer running agents, and bump budgets via `/diverge preview`, `/diverge fix`, `/diverge guide`, `/diverge budget`, `/diverge status`, `/diverge extend-ttl`, `/diverge teardown`, `/diverge pause`, and `/diverge resume`
 - **Built-in MCP Server & Web Dashboard** — Both remote HTTP (`/mcp`) and CLI stdio (`diverge mcp`) MCP servers, plus an embedded React Web Dashboard with OIDC SSO
 - **Activator Wake-Up Splash Page & Idle Hibernation** — Browser-friendly `202 Accepted` auto-refreshing splash screen (`--wake-splash`) during cold starts, idle hibernation (`divergedev.com/hibernate-after`), and Prometheus preview cost estimation (`diverge_environment_estimated_hourly_cost_usd`)
 - **GitLab & GitHub Commit Statuses** — Automated `diverge/preview` merge gating across both GitHub and GitLab

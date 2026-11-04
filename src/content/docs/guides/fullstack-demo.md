@@ -57,12 +57,12 @@ Run the automated walkthrough script against any local `kind` or `k3d` cluster (
 ```
 
 What `run-demo.sh` executes:
-1. Bootstraps the shared baseline stack (`storefront-web`, `checkout-api`, `fulfillment-worker`, PostgreSQL, and Flipt) in `demo-staging`.
-2. Runs `diverge diff` for **PR #42 (`feat/instant-payouts`)**, confirming that only `checkout-api` changed (`1 of 3` services deployed -> **67% compute saved**).
-3. Applies `PreviewGroup/pr-42` (`examples/fullstack-demo/k8s/previewgroup-pr42.yaml`), which provisions PostgreSQL schema `preview_pr_42`, runs the Ariga Atlas migration job (`20260902_add_instant_payouts.sql`), syncs Flipt flag `instant_payouts = true`, and deploys `checkout-api-pr-42`.
+1. Validates `.diverge.yaml` against the embedded JSON Schema (`diverge validate`) and checks the topology graph for cycles (`diverge graph validate`).
+2. Simulates how requests with `x-diverge-env` route from `storefront-web` to `checkout-api` (`diverge route checkout-api`).
+3. Applies the shared baseline stack (`k8s/00-baseline.yaml`) and `PreviewGroup/pr-42` (`k8s/01-previewgroup-pr42.yaml`), which provisions PostgreSQL schema `preview_pr_42`, runs the Ariga Atlas migration job (`20260902000000_add_instant_payouts.sql`), syncs Flipt flag `instant_payouts = true`, and deploys `checkout-api-pr-42`.
 4. Verifies baseline vs. preview routing using both `-H "x-diverge-env: pr-42"` and the browser cookie switcher URL `?_diverge_env=pr-42`.
-5. Demonstrates scale-to-zero hibernation (`divergedev.com/hibernate-after: "30m"`) and the `202 Accepted` wake-up splash screen (`GET /-/wakeup-status`).
-6. Applies `AgentTask/fix-pr-42-rounding` (`examples/fullstack-demo/k8s/agenttask-fix-pr42.yaml`), tests live Macaroon LLM budget metering (`POST /api/v1/agenttask/meter`), runs `diverge doctor`, and tears down PR #42 cleanly.
+5. Demonstrates scale-to-zero hibernation (`k8s/02-environment-scale-to-zero.yaml` with `divergedev.com/hibernate-after: "15m"` and KEDA `minReplicas: 0`) and the `202 Accepted` wake-up splash screen (`GET /-/wakeup-status`).
+6. Applies `AgentTask/fix-pr-42-rounding` (`k8s/03-agenttask-fix-checkout.yaml`) in a `gvisor` sandbox with a `$5.00` / `200,000` token Macaroon budget and a linked `checkout-api` preview environment.
 
 ---
 
@@ -72,90 +72,112 @@ What `run-demo.sh` executes:
 examples/fullstack-demo/
 ├── README.md
 ├── .diverge.yaml                        # Unified Diverge repository config
+├── migrations/
+│   ├── 20260901000000_init_orders.sql
+│   ├── 20260902000000_add_instant_payouts.sql
+│   └── atlas.sum
 ├── services/
 │   ├── storefront-web/
 │   │   └── main.go                      # BFF propagating x-diverge-env header
 │   ├── checkout-api/
-│   │   ├── main.go                      # Reads PG schema + Flipt instant_payouts flag
-│   │   └── migrations/
-│   │       ├── 20260901_init_orders.sql
-│   │       └── 20260902_add_instant_payouts.sql
+│   │   └── main.go                      # Reads PG schema + Flipt instant_payouts flag
 │   └── fulfillment-worker/
 │       └── main.go                      # Kafka consumer aware of x-diverge-env
 ├── k8s/
-│   ├── baseline.yaml                    # Shared staging Deployments & Services
-│   ├── previewgroup-pr42.yaml           # Delta PreviewGroup CR for PR #42
-│   └── agenttask-fix-pr42.yaml          # gVisor AgentTask CR with $5.00 Macaroon budget
+│   ├── 00-baseline.yaml                 # Shared staging Deployments & Services
+│   ├── 01-previewgroup-pr42.yaml        # Delta PreviewGroup CR for PR #42
+│   ├── 02-environment-scale-to-zero.yaml # Scale-to-zero & KEDA Environment CR
+│   └── 03-agenttask-fix-checkout.yaml   # gVisor AgentTask CR with $5.00 Macaroon budget
 └── scripts/
-    └── run-demo.sh                      # Interactive / CI end-to-end runner
+    └── run-demo.sh                      # Interactive / CI end-to-end runner (--dry-run | --live)
 ```
 
 ---
 
 ## Inside `.diverge.yaml`
 
-The root [`.diverge.yaml`](https://github.com/divergedev/diverge/blob/main/examples/fullstack-demo/.diverge.yaml) configures delta detection paths, header/cookie routing, database schema isolation with Atlas migrations, Flipt flags, Kafka topic isolation, and scale-to-zero hibernation:
+The root [`.diverge.yaml`](https://github.com/divergedev/diverge/blob/main/examples/fullstack-demo/.diverge.yaml) configures delta detection paths, service dependency topology (`dependsOn`), header/cookie routing, database schema isolation with Atlas migrations, Flipt flags, and Kafka topic isolation:
 
 ```yaml
+# yaml-language-server: $schema=https://divergedev.com/schemas/diverge.schema.json
 version: "1"
 
 services:
   storefront-web:
+    entrypoint: true
     paths:
       - "services/storefront-web/**"
-    port: 8080
     image:
-      repository: ghcr.io/divergedev/demo-storefront-web
+      repository: "ghcr.io/divergedev/demo-storefront-web"
       tag_template: "pr-{{.MR}}"
+    dependsOn:
+      - "checkout-api"
 
   checkout-api:
     paths:
       - "services/checkout-api/**"
-    port: 8081
+      - "migrations/**"
     image:
-      repository: ghcr.io/divergedev/demo-checkout-api
+      repository: "ghcr.io/divergedev/demo-checkout-api"
       tag_template: "pr-{{.MR}}"
+    dependsOn:
+      - "fulfillment-worker"
+    asyncRoutes:
+      - protocol: kafka
+        target: orders-events
+        envVarMapping:
+          orders-events: ORDERS_QUEUE_TOPIC
 
   fulfillment-worker:
     paths:
       - "services/fulfillment-worker/**"
-    port: 8082
     image:
-      repository: ghcr.io/divergedev/demo-fulfillment-worker
+      repository: "ghcr.io/divergedev/demo-fulfillment-worker"
       tag_template: "pr-{{.MR}}"
+    asyncRoutes:
+      - protocol: kafka
+        target: orders-events
+        envVarMapping:
+          orders-events: ORDERS_QUEUE_TOPIC
 
 defaults:
   deploy:
     mode: delta
+    namespace: same
   routing:
     mode: header
-    header_name: x-diverge-env
-    baseline_namespace: demo-staging
-    cookie_switcher:
-      enabled: true
-      query_param: _diverge_env
+    baseline_namespace: default
+    header_key: x-diverge-env
+    domain: preview.localhost
     banner:
       enabled: true
+      text: "Diverge Preview Environment"
+      position: bottom
+      color: "#FF5500"
   database:
     mode: schema
+    connection_ref: postgres-admin
     atlas:
       mode: versioned
       engine: job
-      migration_dir: services/checkout-api/migrations
-  feature_flags:
+      migration_config_map: checkout-migrations
+      policy:
+        destructive: error
+  features:
     provider: flipt
-    namespace_template: "preview-{{.Env}}"
-  async:
-    provider: kafka
-    topics:
-      - orders.events
-  scale_to_zero:
-    enabled: true
-    hibernate_after: 30m
-    wake_splash: true
+    overrides:
+      instant_payouts: "true"
+      checkout_v2_banner: "true"
   lifecycle:
-    ttl: 48h
+    ttl: 24h
     cleanup_on_merge: true
+  dev:
+    on_conflict: warn
+
+notifications:
+  provider: github
+  comment_on_create: true
+  comment_on_ready: true
 ```
 
 ---
@@ -186,36 +208,48 @@ When `PreviewGroup/pr-42` reconciles, Diverge:
    ```
 3. Drops `preview_pr_42 CASCADE` automatically via the `divergedev.com/finalizer` when PR #42 is merged or closed.
 
-### 3. Autonomous `AgentTask` Sandbox (`agenttask-fix-pr42.yaml`)
+### 3. Autonomous `AgentTask` Sandbox (`03-agenttask-fix-checkout.yaml`)
 
-When a reviewer comments `/diverge fix "Fix currency rounding in instant payouts"` on PR #42, Diverge creates an `AgentTask` CR that runs in a `gvisor` sandbox with a linked preview environment and a `$5.00` Macaroon capability token:
+When a reviewer comments `/diverge fix "Fix currency rounding in instant payouts"` on PR #42, Diverge creates an `AgentTask` CR that runs in a `gvisor` sandbox with a linked preview environment (`divergedev.com/preview-enabled: "true"`) and a `$5.00` / `200,000` token Macaroon capability budget:
 
 ```yaml
 apiVersion: divergedev.com/v1alpha1
 kind: AgentTask
 metadata:
   name: fix-pr-42-rounding
-  namespace: demo-staging
+  namespace: default
+  labels:
+    app.kubernetes.io/part-of: diverge-fullstack-demo
+  annotations:
+    divergedev.com/preview-enabled: "true"
+    divergedev.com/preview-service: "checkout-api"
+    divergedev.com/runtime-class: "gvisor"
 spec:
-  prompt: "Fix currency rounding in instant payouts fee calculation and add unit tests"
-  repoURL: "https://github.com/divergedev/diverge.git"
-  branch: "feat/instant-payouts"
-  pullRequestNumber: 42
-  sandboxClassName: gvisor
-  createLinkedPreview: true
+  objective: "Fix currency rounding discrepancy for instant payouts in checkout-api and add table-driven unit tests"
+  repository:
+    url: "https://github.com/divergedev/fullstack-demo.git"
+    baseBranch: "main"
+    workingBranch: "agent/fix-pr-42-rounding"
+  sandbox:
+    provider: "agent-sandbox"
+    poolRef: "gvisor-warm-pool"
+    templateRef: "gvisor"
+    timeoutSeconds: 1800
   budgetUSD: "5.00"
   budgetTokens: 200000
-  maxIterations: 15
-  allowedModels:
-    - "claude-3-7-sonnet"
+  maxIterations: 5
+  capabilities:
+    - "fast"
+    - "smart"
+  draftPR: true
 ```
 
 ---
 
 ## Cleanup
 
-To remove the `demo-staging` namespace and all preview resources created by the demo script:
+To remove the preview resources created during `--live` execution:
 
 ```bash
-./examples/fullstack-demo/scripts/run-demo.sh --cleanup
+kubectl delete -f examples/fullstack-demo/k8s/ --ignore-not-found
 ```

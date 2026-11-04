@@ -106,8 +106,8 @@ diverge validate
 Deploy a delta preview environment (`pr-42`) that overrides only the `api` service while reusing the baseline `web` frontend and other unchanged services:
 
 ```bash
-diverge preview create pr-42 \
-  --branch feat/checkout-v2 \
+diverge preview create \
+  --name pr-42 \
   --service api=ghcr.io/myorg/api:pr-42
 ```
 

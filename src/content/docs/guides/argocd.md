@@ -18,9 +18,9 @@ This direct approach is production-ready and includes:
 
 The Diverge Argo CD Generator supports generating Application manifests for both **Helm** and **Kustomize** `sourceTypes`. You are not limited to just Helm charts.
 
-### Kustomize Example
+### Kustomize & Helm Application Generation
 
-Here is how you can configure a service to use Kustomize in your `.diverge.yaml`:
+In `.diverge.yaml`, configure the service's `helm` chart path (or omit `helm` when using Kustomize overlays configured on the controller's Argo CD deployer):
 
 ```yaml
 version: "1"
@@ -30,8 +30,9 @@ services:
     image:
       repository: registry.example.com/frontend
       tag_template: "mr-{{.MR}}"
-    kustomize:
-      path: k8s/overlays/preview
+    helm:
+      path: charts/frontend
+      values_file: values-preview.yaml
 ```
 
 When Diverge detects changes, it will dynamically generate an Argo CD Application resource with the `sourceType: kustomize`, automatically injecting the correct image overrides for your preview environment.

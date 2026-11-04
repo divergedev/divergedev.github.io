@@ -10,14 +10,11 @@ Diverge provides first-class GitLab integration for automatic preview environmen
 Install the Diverge controller with GitLab notifier enabled:
 
 ```bash
-helm repo add diverge https://divergedev.github.io/diverge
-helm repo update
-
-helm install diverge diverge/diverge \
+helm install diverge oci://ghcr.io/divergedev/charts/diverge \
   --namespace diverge-system \
   --create-namespace \
   --set notifierProvider=gitlab \
-  --set controller.env.DIVERGE_NOTIFIER_TOKEN=<gitlab-api-token> \
+  --set controller.env.DIVERGE_NOTIFIER_TOKEN=<gitlab-token> \
   --set controller.env.DIVERGE_WEBHOOK_SECRET=<webhook-secret>
 ```
 
@@ -72,7 +69,7 @@ Webhook authentication uses constant-time comparison of the `X-Gitlab-Token` hea
 | `Merge Request Hook`: `open`, `reopen` | Creates `Environment` / `PreviewGroup` CR |
 | `Merge Request Hook`: `update` (new push) | Updates the CR with new commit SHA |
 | `Merge Request Hook`: `merge`, `close` | Deletes the CR (triggers teardown) |
-| `Note Hook` (on MergeRequest) | Parses `/diverge` slash commands on MRs (`preview`, `fix`, `extend-ttl`, `teardown`, `pause`, `resume`) |
+| `Note Hook` (on MergeRequest) | Parses `/diverge` slash commands on MRs (`preview`, `fix`, `guide`, `budget`, `status`, `help`, `extend-ttl`, `teardown`, `pause`, `resume`) |
 
 ---
 
@@ -83,11 +80,15 @@ When **Comments** (`Note Hook`) events are enabled on `/gitlab-webhook`, develop
 | Slash Command | Action |
 |---------------|--------|
 | `/diverge preview` | Provisions or refreshes the `Environment` for the Merge Request (`mr-<iid>`) |
-| `/diverge fix <objective>` | Spawns an autonomous `AgentTask` (`fix-mr-<iid>`) with `spec.createPreview: true` and your custom objective |
+| `/diverge fix <objective>` | Spawns an autonomous `AgentTask` (`fix-mr-<iid>`) with `divergedev.com/preview-enabled: "true"` and your custom objective |
+| `/diverge guide <hint>` | Sends live steering guidance (`divergedev.com/guidance`) delivered to the active agent on its next metering heartbeat |
+| `/diverge budget [+$budget] [tokens]` | Bumps the active `AgentTask`'s USD and/or token budget without changing suspension state |
+| `/diverge status` | Posts an immediate Markdown summary of active `AgentTask`s and linked preview environments |
+| `/diverge help` | Displays the interactive slash command reference table |
 | `/diverge extend-ttl [duration]` | Extends the preview environment TTL (e.g. `/diverge extend-ttl 4h`, defaults to `24h`) |
 | `/diverge teardown` | Immediately deletes the `Environment` and `PreviewGroup` (`mr-<iid>`) for the MR |
-| `/diverge pause` | Suspends the active `AgentTask` (`fix-mr-<iid>`) by setting `spec.suspended: true` and revoking its Macaroon token |
-| `/diverge resume` | Resumes a paused `AgentTask` (`fix-mr-<iid>`) by setting `spec.suspended: false` and minting a fresh Macaroon token |
+| `/diverge pause` | Suspends the active `AgentTask` (`fix-mr-<iid>`) by setting `spec.suspended: true`, revoking its Macaroon token, and hibernating its linked preview |
+| `/diverge resume [+$budget] [tokens]` | Resumes a paused `AgentTask` (`fix-mr-<iid>`) by setting `spec.suspended: false`, optionally bumping budget, and minting a fresh Macaroon token |
 
 :::caution[Collaborator Authorization]
 Slash commands are restricted to authorized project members (`OWNER`, `MEMBER`, or `COLLABORATOR` roles). Untrusted external notes are rejected before any Kubernetes resources are mutated.
@@ -99,13 +100,13 @@ Slash commands are restricted to authorized project members (`OWNER`, `MEMBER`, 
 
 ### Turnkey GitLab CI/CD Catalog Component (Recommended)
 
-Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v0.15.0`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
+Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v0.18.0`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
 
 When `diverge_services` is left empty and `.diverge.yaml` is present in your repository, the component **automatically fetches the target branch, runs `diverge diff --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --output json`**, deploys a delta `PreviewGroup` (`mr-$CI_MERGE_REQUEST_IID`) for only the modified services, and exports a `preview.env` `dotenv` report artifact to downstream E2E test jobs:
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v0.15.0
+  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v0.18.0
     inputs:
       diverge_registry: "$CI_REGISTRY_IMAGE"
       diverge_base_url: "https://staging.example.com"
@@ -176,10 +177,10 @@ variables:
 
 # All jobs needing the CLI use this image (git, curl, jq included)
 default:
-  image: ghcr.io/divergedev/diverge-cli:v0.15.0
+  image: ghcr.io/divergedev/diverge-cli:v0.18.0
 ```
 
-To pin a specific version, replace `v0.15.0` with the desired tag. Use `latest` to always get the newest release.
+To pin a specific version, replace `v0.18.0` with the desired tag. Use `latest` to always get the newest release.
 
 #### Change Detection
 

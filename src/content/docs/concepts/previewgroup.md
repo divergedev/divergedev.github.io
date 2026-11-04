@@ -31,35 +31,42 @@ When you open a Merge Request, Diverge detects the changed services based on the
 PreviewGroups track their child resources using Kubernetes labels. Every resource created for a specific PR will have standard Diverge labels:
 
 ```yaml
-diverge.dev/group: "mr-123"
-diverge.dev/managed-by: "diverge-controller"
+divergedev.com/preview-group: "mr-123"
+divergedev.com/managed-by: "diverge"
 ```
 
 This ensures robust tracking and cleanup, even if manual modifications occur.
 
 ## Example Configuration
 
-When Diverge processes an MR, it generates a `PreviewGroup` that looks like this:
+When Diverge processes an MR (or when you run `diverge preview create`), it generates a cluster-scoped `PreviewGroup` Custom Resource:
 
 ```yaml
-apiVersion: diverge.dev/v1
+apiVersion: divergedev.com/v1alpha1
 kind: PreviewGroup
 metadata:
   name: mr-123
-  namespace: diverge-system
 spec:
-  prNumber: 123
-  commitSha: "a1b2c3d4e5f6g7h8i9j0"
-  environments:
-    - name: api
-      image: registry.example.com/api:mr-123
-      deployMode: knative
-    - name: web
-      image: registry.example.com/web:mr-123
-      deployMode: knative
-  notifier:
+  source:
     provider: gitlab
-    projectId: "456"
+    project: "acme/platform"
+    mr: 123
+    branch: "feat/checkout-redesign"
+  routing:
+    headerKey: x-diverge-env
+    headerValue: mr-123
+  lifecycle:
+    ttl: 24h
+    cleanupOnMerge: true
+  services:
+    - name: api
+      namespace: default
+      mode: image
+      image: registry.example.com/api:mr-123
+      port: 8080
+    - name: web
+      namespace: default
+      mode: baseline
 ```
 
 The controller takes this single definition and reconciles it into the individual routes, deployments, databases, and cross-namespace grants required for the full preview environment to function smoothly.

@@ -9,12 +9,13 @@ Diverge can automatically inject a visual banner into your web applications to c
 
 The Diverge proxy intercepts HTML responses and injects a lightweight, non-intrusive preview banner just before the closing `</body>` tag. The banner provides immediate visual feedback that traffic is being routed to an ephemeral preview environment rather than production.
 
-## Configuration in `diverge.yaml`
+## Configuration in `.diverge.yaml`
 
-Starting in Diverge `v0.10.0`, you can configure the preview banner globally in your repository's `diverge.yaml`:
+Starting in Diverge `v0.10.0`, you can configure the preview banner globally in your repository's `.diverge.yaml`:
 
 ```yaml
-# diverge.yaml
+# .diverge.yaml
+version: "1"
 defaults:
   routing:
     banner:
@@ -29,7 +30,8 @@ defaults:
 Banner settings support hierarchical inheritance. You can enable the banner by default for feature branches while hiding or restyling it for specific environments:
 
 ```yaml
-# diverge.yaml
+# .diverge.yaml
+version: "1"
 defaults:
   routing:
     banner:
@@ -74,9 +76,11 @@ spec:
 
 ## Disabling the Banner
 
-If your end-to-end tests or visual regression pipelines require pixel-perfect screenshots without injected markup, disable the banner globally in `diverge.yaml`:
+If your end-to-end tests or visual regression pipelines require pixel-perfect screenshots without injected markup, disable the banner globally in `.diverge.yaml`:
 
 ```yaml
+# .diverge.yaml
+version: "1"
 defaults:
   routing:
     banner:

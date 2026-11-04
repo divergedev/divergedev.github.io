@@ -24,11 +24,12 @@ Whether you manage schema changes through versioned migration files or declarati
 
 ---
 
-## Configuration in `diverge.yaml`
+## Configuration in `.diverge.yaml`
 
-Configure Atlas under the `database` section of your `diverge.yaml`:
+Configure Atlas under the `database` section of your `.diverge.yaml`:
 
 ```yaml
+# .diverge.yaml
 version: "1"
 
 defaults:

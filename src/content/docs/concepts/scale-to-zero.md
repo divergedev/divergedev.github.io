@@ -99,21 +99,12 @@ sequenceDiagram
 
 ## Configuration
 
-Diverge supports three deployment modes:
-- `local`: Hot reload using a Tailscale WireGuard tunnel to your laptop.
-- `image`: Standard Kubernetes deployments (supports idle hibernation via `divergedev.com/hibernate-after` or KEDA `HTTPScaledObject`).
-- `serverless`: Scale-to-zero using Knative Serving.
+Diverge supports three scale-to-zero and deployment mechanisms:
+- **Annotation-based Idle Hibernation (`divergedev.com/hibernate-after`)**: Works with standard Kubernetes Deployments (`--deploy-provider=direct`) without extra CRDs.
+- **KEDA HTTP Add-on (`spec.serviceConfig.keda.enabled: true`)**: Reconciles a KEDA `HTTPScaledObject` (and `ScaledObject` for Kafka/Temporal workers) per `Environment`.
+- **Knative Serving (`--deploy-provider=knative`)**: Reconciles Knative `Service` resources that scale to zero natively.
 
-To enable Knative scale-to-zero for your environments, set the deploy mode to `serverless` in your `.diverge.yaml` (or via `PreviewGroup` spec):
-
-```yaml
-# .diverge.yaml
-defaults:
-  deploy:
-    mode: serverless
-```
-
-Or configure KEDA HTTP scale-to-zero on an `Environment` via `spec.serviceConfig.keda`:
+Configure KEDA HTTP scale-to-zero and idle hibernation on an `Environment` via `spec.serviceConfig.keda`:
 
 ```yaml
 apiVersion: divergedev.com/v1alpha1

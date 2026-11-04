@@ -150,14 +150,21 @@ Async routes can be defined in both service-level configuration (`.diverge.yaml`
 ### Service Configuration (`.diverge.yaml`)
 
 ```yaml
-# .diverge.yaml in service repository
-serviceName: payment-worker
-port: 8080
-asyncRoutes:
-  - protocol: kafka
-    target: payment-events
-  - protocol: temporal
-    target: payment-workflows
+# .diverge.yaml
+version: "1"
+
+services:
+  payment-worker:
+    paths:
+      - "services/payment-worker/**"
+    image:
+      repository: "ghcr.io/myorg/payment-worker"
+      tag_template: "pr-{{.MR}}"
+    asyncRoutes:
+      - protocol: kafka
+        target: payment-events
+      - protocol: temporal
+        target: payment-workflows
 ```
 
 ### Custom Resource Definition (`Environment` CRD)

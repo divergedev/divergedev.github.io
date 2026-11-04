@@ -58,16 +58,19 @@ curl -X POST https://diverge.example.com/api/v1/agenttask/meter \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer $(cat /etc/diverge/token/token)" \
   -d '{
+    "requestId": "fix-checkout-iter-1",
+    "iteration": 1,
     "model": "claude-3-7-sonnet",
     "tokensUsed": 1500,
     "costUSD": 0.0225
   }'
 ```
 
-The endpoint returns `{"allowed": true, "suspended": false, "totalTokensUsed": 1500, "totalCostUSD": 0.0225}` on `200 OK` and enforces:
-1. **Model Capability Check**: Rejects requests with `403 Forbidden` if `model` is omitted or not permitted by the Macaroon's `allowed_models` caveat (`spec.capabilities`).
-2. **Atomic Status Updates**: Increments `status.tokensConsumed` and `status.costUSD` on the `AgentTask` using optimistic concurrency (`RetryOnConflict`).
-3. **Budget & Caveat Enforcement**: If the updated cumulative usage exceeds the Macaroon's `max_cost_usd` or `max_tokens` caveats or the `AgentTask` spec (`budgetUSD`, `budgetTokens`), the server immediately sets `spec.suspended = true` and `status.phase = Paused` (`Reason: BudgetExceeded`), marks the token revoked in `diverge-agenttask-tokens`, and returns `429 Too Many Requests` (`{"allowed": false, "suspended": true, "reason": "budget exceeded", "totalTokensUsed": ..., "totalCostUSD": ...}`).
+The endpoint returns `{"allowed": true, "suspended": false, "totalTokensUsed": 1500, "totalCostUSD": 0.0225, "iteration": 1, "maxIterations": 8, "guidance": "...", "previewUrl": "https://..."}` on `200 OK` and enforces:
+1. **Idempotent Deduplication (`requestId`)**: Tracks recent `requestId` values in a bounded 32-entry ring buffer (`status.lastMeterRequestIds`) on the `AgentTask` so network retries across server replicas never double-charge tokens, USD cost, or iterations.
+2. **Model Capability Check**: Rejects requests with `403 Forbidden` if `model` is omitted or not permitted by the Macaroon's `allowed_models` caveat (`spec.capabilities`, supporting exact or prefix wildcards like `claude-*`).
+3. **Atomic Status Updates & Live Steering**: Increments `status.tokensConsumed`, `status.costUSD`, and `status.iterations` on the `AgentTask` using optimistic concurrency (`RetryOnConflict`), and returns any live human steering guidance (`divergedev.com/guidance`) and linked `previewUrl`.
+4. **Budget, Iteration & Caveat Enforcement**: If the updated cumulative usage or iteration exceeds the Macaroon's `max_cost_usd` or `max_tokens` caveats or the `AgentTask` spec (`budgetUSD`, `budgetTokens`, `maxIterations`), the server immediately sets `spec.suspended = true` and `status.phase = Paused` (`Reason: BudgetExceeded`), marks the token revoked in `diverge-agenttask-tokens`, and returns `429 Too Many Requests` (`{"allowed": false, "suspended": true, "reason": "budget exceeded", "totalTokensUsed": ..., "totalCostUSD": ...}`).
 
 ## Example Usage
 
