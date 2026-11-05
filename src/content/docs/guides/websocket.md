@@ -43,7 +43,7 @@ spec:
 
 When `websocket.enabled: true` is set:
 1. **Gateway API `HTTPRoute` Rules**: `GatewayRouter` generates an `HTTPRoute` rule matching your preview header (`x-diverge-env: pr-123`) or preview subdomain (`pr-123.preview.example.com`) with `timeouts: { request: 0s }` (or your configured `timeout`).
-2. **Browser Cookie & Magic Link Support (`?_diverge_env=`)**: Because browser `new WebSocket(url)` constructors cannot set custom HTTP headers directly, opening your preview via a Magic Link (`?_diverge_env=pr-123`) sets the `diverge_env=pr-123` session cookie, which `diverge-proxy` translates into `x-diverge-env: pr-123` on the initial HTTP `Upgrade: websocket` handshake.
+2. **Browser Cookie & Magic Link Support (`?_diverge_env=`)**: Because browser `new WebSocket(url)` constructors cannot set custom HTTP headers directly, opening your preview via a Magic Link (`?_diverge_env=pr-123`) sets the `diverge_env=pr-123` session cookie, which `diverge-proxy` translates into `x-diverge-env: pr-123` on the initial HTTP `Upgrade: websocket` handshake. Note that cookie-based WebSocket routing requires `proxy.enabled: true` in your Helm values (it is `false` by default); without `diverge-proxy`, the `diverge_env` cookie is not translated into `x-diverge-env` and the handshake will reach the baseline service unless you use subdomain routing (`pr-123.preview.example.com`).
 3. **Baseline Fallback**: If a preview environment does not modify the WebSocket service, connections route transparently to the shared baseline deployment.
 
 ```mermaid

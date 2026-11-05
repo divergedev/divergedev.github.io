@@ -61,7 +61,7 @@ What `run-demo.sh` executes:
 2. Simulates how requests with `x-diverge-env` route from `storefront-web` to `checkout-api` (`diverge route checkout-api`).
 3. Applies the shared baseline stack (`k8s/00-baseline.yaml`) and `PreviewGroup/pr-42` (`k8s/01-previewgroup-pr42.yaml`), which provisions PostgreSQL schema `preview_pr_42`, runs the Ariga Atlas migration job (`20260902000000_add_instant_payouts.sql`), syncs Flipt flag `instant_payouts = true`, and deploys `checkout-api-pr-42`.
 4. Verifies baseline vs. preview routing using both `-H "x-diverge-env: pr-42"` and the browser cookie switcher URL `?_diverge_env=pr-42`.
-5. Demonstrates scale-to-zero hibernation (`k8s/02-environment-scale-to-zero.yaml` with `divergedev.com/hibernate-after: "15m"` and KEDA `minReplicas: 0`) and the `202 Accepted` wake-up splash screen (`GET /-/wakeup-status`).
+5. Applies the scale-to-zero hibernation configuration (`k8s/02-environment-scale-to-zero.yaml` with `divergedev.com/hibernate-after: "15m"` and KEDA `minReplicas: 0`) and prints the routing commands (`run-demo.sh` applies the configuration and prints instructions; to manually verify wake-up and the `202 Accepted` splash screen, wait for hibernation and request `GET /-/wakeup-status` or send `-H "X-Diverge-Wake-Splash: true"`).
 6. Applies `AgentTask/fix-pr-42-rounding` (`k8s/03-agenttask-fix-checkout.yaml`) in a `gvisor` sandbox with a `$5.00` / `200,000` token Macaroon budget and a linked `checkout-api` preview environment.
 
 ---
@@ -227,7 +227,7 @@ metadata:
 spec:
   objective: "Fix currency rounding discrepancy for instant payouts in checkout-api and add table-driven unit tests"
   repository:
-    url: "https://github.com/divergedev/fullstack-demo.git"
+    url: "https://github.com/divergedev/diverge.git"
     baseBranch: "main"
     workingBranch: "agent/fix-pr-42-rounding"
   sandbox:
@@ -239,6 +239,7 @@ spec:
   budgetTokens: 200000
   maxIterations: 5
   capabilities:
+    - "claude-3-7-sonnet"
     - "fast"
     - "smart"
   draftPR: true
@@ -248,7 +249,17 @@ spec:
 
 ## Cleanup
 
-To remove the preview resources created during `--live` execution:
+To remove only the preview and agent task resources while keeping the shared baseline stack (`00-baseline.yaml`) running:
+
+```bash
+kubectl delete \
+  -f examples/fullstack-demo/k8s/01-previewgroup-pr42.yaml \
+  -f examples/fullstack-demo/k8s/02-environment-scale-to-zero.yaml \
+  -f examples/fullstack-demo/k8s/03-agenttask-fix-checkout.yaml \
+  --ignore-not-found
+```
+
+To tear down the entire demo (including the shared baseline Deployments and Services):
 
 ```bash
 kubectl delete -f examples/fullstack-demo/k8s/ --ignore-not-found

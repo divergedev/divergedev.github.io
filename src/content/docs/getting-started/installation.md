@@ -5,7 +5,7 @@ description: Install the Diverge CLI and Kubernetes Operator via Helm
 
 Diverge consists of 6 core binaries built on a hardened `distroless nonroot` base:
 - **`diverge-controller`** — Kubernetes operator reconciling `Environment`, `PreviewGroup`, and `AgentTask` CRDs
-- **`diverge-server`** — ConnectRPC API server (`:8443` HTTPS and `:8080` in-cluster HTTP), `/mcp` endpoint, LLM metering (`POST /api/v1/agenttask/meter`), and embedded React Web Dashboard
+- **`diverge-server`** — ConnectRPC API server (`:8443` and `:8080`; listens in plaintext by default unless `--tls-cert` and `--tls-key` are supplied, so production deployments must either configure server TLS files or terminate TLS at an Ingress/Gateway), `/mcp` endpoint, LLM metering (`POST /api/v1/agenttask/meter`), and embedded React Web Dashboard
 - **`diverge-proxy`** — L7 header/subdomain router and `<diverge-toolbar>` preview banner injector
 - **`activator-proxy`** — Scale-to-zero cold-start wake-up proxy with `202 Accepted` browser splash screen
 - **`diverge-agent-runner`** (`ghcr.io/divergedev/agent-runner`) — Reference autonomous sandbox runner with Macaroon metering and build-verify-fix loop
@@ -13,15 +13,19 @@ Diverge consists of 6 core binaries built on a hardened `distroless nonroot` bas
 
 ## Helm Chart (Kubernetes Operator)
 
-The recommended way to install Diverge on a Kubernetes cluster is using the official OCI Helm chart:
+The recommended way to install Diverge on a Kubernetes cluster is using the official OCI Helm chart. Because `diverge-controller` starts its admission webhook server unconditionally and mounts the `diverge-webhook-tls` Secret, either enable `certManager.enabled=true` (when [cert-manager](https://cert-manager.io/) and its CRDs are installed on the cluster) or pre-create the `diverge-webhook-tls` TLS Secret in `diverge-system` before installing:
 
 ```bash
+# Option A: With cert-manager already installed on the cluster
 helm install diverge oci://ghcr.io/divergedev/charts/diverge \
   --namespace diverge-system \
-  --create-namespace
+  --create-namespace \
+  --set certManager.enabled=true
 ```
 
 ### Production Installation (Server, Web Dashboard & AgentTask Sandboxes)
+
+> **Prerequisite:** Setting `certManager.enabled: true` creates cert-manager `Issuer` and `Certificate` resources for webhook TLS; ensure `cert-manager` (including its CRDs) is already installed in your cluster before running `helm upgrade --install`, and terminate TLS for `diverge-server` at your Ingress/Gateway (or mount TLS cert/key files into `diverge-server`).
 
 To enable the ConnectRPC server, embedded Web Dashboard, autonomous `AgentTask` sandboxes with shared Macaroon capability keys, and admission webhooks, create a shared Macaroon root key secret and configure `values.yaml`:
 
@@ -70,13 +74,13 @@ helm upgrade --install diverge oci://ghcr.io/divergedev/charts/diverge \
 Install the latest `diverge` CLI using the official install script:
 
 ```bash
-curl -fsSL https://divergedev.com/install.sh | sh
+curl -fsSL https://divergedev.com/install.sh -o install.sh && sh install.sh
 ```
 
 If you prefer to inspect the script and its SHA-256 digest before executing, download it first:
 
 ```bash
-curl -fsSL -o install.sh https://raw.githubusercontent.com/divergedev/diverge/main/install.sh
+curl -fsSL -o install.sh https://divergedev.com/install.sh
 sha256sum install.sh
 sh install.sh
 ```

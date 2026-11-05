@@ -69,7 +69,7 @@ Before connecting your AI editor to the Diverge MCP server, ensure you have:
 
 1. **Diverge CLI** installed (`diverge version`):
    ```bash
-   curl -fsSL https://divergedev.com/install.sh | sh
+   curl -fsSL https://divergedev.com/install.sh -o install.sh && sh install.sh
    ```
 2. **Access to a Diverge API Server** (`diverge-server`):
    - **In-cluster / Remote**: An accessible ConnectRPC endpoint (e.g., `https://diverge.example.com` or via ingress).
@@ -271,7 +271,7 @@ Enabling `--allow-destructive` allows the AI agent to initiate irreversible dele
 | Flag | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `--server-url` | `string` | `""` | Diverge API server URL. If empty, falls back to `DIVERGE_SERVER_URL` environment variable. |
-| `--allow-destructive` | `bool` | `false` | Enable destructive tools (`delete` / `cancel` methods). |
+| `--allow-destructive` | `bool` | `false` | Enable destructive tools (`diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_delete_task`). |
 
 ### Global Flags
 
