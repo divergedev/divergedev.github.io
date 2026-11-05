@@ -26,11 +26,18 @@ Whether you manage schema changes through versioned migration files or declarati
 
 ## Configuration in `.diverge.yaml`
 
-Configure Atlas under the `database` section of your `.diverge.yaml`:
+Configure Atlas under `defaults.database` (or per-environment under `environments.<name>.database`) in your `.diverge.yaml`:
 
 ```yaml
 # .diverge.yaml
 version: "1"
+
+services:
+  api:
+    paths: ["apps/api/**"]
+    image:
+      repository: "ghcr.io/myorg/api"
+      tag_template: "pr-{{.MR}}"
 
 defaults:
   database:
@@ -47,6 +54,8 @@ defaults:
 environments:
   declarative-preview:
     database:
+      mode: schema
+      connection_ref: staging-postgres
       atlas:
         mode: declarative
         engine: job
@@ -64,13 +73,14 @@ environments:
 In versioned mode, Atlas runs `atlas migrate apply` against your preview database. Your migrations directory (containing `.sql` files and `atlas.sum`) is mounted into the migration runner from a Kubernetes ConfigMap.
 
 ```yaml
-database:
-  mode: schema
-  connection_ref: staging-postgres
-  atlas:
-    mode: versioned
-    engine: job
-    migration_config_map: db-migrations
+defaults:
+  database:
+    mode: schema
+    connection_ref: staging-postgres
+    atlas:
+      mode: versioned
+      engine: job
+      migration_config_map: db-migrations
 ```
 
 The ConfigMap should contain the files in your migrations directory:
@@ -100,15 +110,16 @@ When Diverge detects changes to `db-migrations` (via its `ResourceVersion`), it 
 In declarative mode, Atlas inspects the preview database schema and applies schema diffs to reach the desired state defined in your schema ConfigMap:
 
 ```yaml
-database:
-  mode: schema
-  connection_ref: staging-postgres
-  atlas:
-    mode: declarative
-    engine: job
-    schema_config_map: app-schema
-    policy:
-      destructive: allow
+defaults:
+  database:
+    mode: schema
+    connection_ref: staging-postgres
+    atlas:
+      mode: declarative
+      engine: job
+      schema_config_map: app-schema
+      policy:
+        destructive: allow
 ```
 
 Your schema ConfigMap can supply either `schema.sql` (standard SQL DDL) or `schema.hcl`:
@@ -160,11 +171,12 @@ The standalone Job engine runs an isolated, security-hardened Kubernetes Job:
 If your cluster already runs the [Atlas Kubernetes Operator](https://atlasgo.io/integrations/kubernetes/operator), set `engine: "operator"`. Diverge will create native `AtlasMigration` or `AtlasSchema` custom resources owned by the `Environment`:
 
 ```yaml
-database:
-  atlas:
-    engine: operator
-    mode: versioned
-    migration_config_map: db-migrations
+defaults:
+  database:
+    atlas:
+      engine: operator
+      mode: versioned
+      migration_config_map: db-migrations
 ```
 
 The Diverge reconciler monitors the `Ready` condition on the generated Atlas custom resource and updates `DatabaseReady` accordingly.
