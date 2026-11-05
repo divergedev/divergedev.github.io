@@ -103,9 +103,11 @@ diverge validate
 
 ## Step 2: Create Your First Delta Preview
 
-Deploy a delta preview environment (`pr-42`) that overrides only the `api` service while reusing the baseline `web` frontend and other unchanged services:
+First, check out your feature branch (for example, `feat/checkout-v2`, since `diverge preview create` reads the source branch from your current Git checkout), then deploy a delta preview environment (`pr-42`) that overrides only the `api` service while reusing the baseline `web` frontend and other unchanged services:
 
 ```bash
+git checkout -b feat/checkout-v2
+
 diverge preview create \
   --name pr-42 \
   --service api=ghcr.io/myorg/api:pr-42

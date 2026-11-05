@@ -32,9 +32,9 @@ flowchart LR
 2. **Automatic Linked Preview Environments (`divergedev.com/preview-enabled: "true"`)**:
    - When `spec.repository.url` is set (and `divergedev.com/preview-enabled` is not `"false"`), `AgentTaskReconciler` automatically provisions and owns a linked `Environment` CR (`agent-preview-<task-name>`) tracking the agent's working branch, populates `divergedev.com/preview-environment` and `divergedev.com/preview-url` annotations, and injects `DIVERGE_PREVIEW_URL`, `DIVERGE_PREVIEW_HEADER_KEY`, and `DIVERGE_PREVIEW_HEADER_VALUE` into the sandbox pod.
 3. **Idempotent Live LLM Cost & Token Metering (`POST /api/v1/agenttask/meter`)**:
-   - Sandbox pods report token and USD cost deltas (with an idempotent `requestId` and `iteration`) to `POST /api/v1/agenttask/meter` on `diverge-server`.
+   - Sandbox pods report incremental `tokensUsed` and `costUSD` request deltas (with an idempotent `requestId` and an `iteration` counter) to `POST /api/v1/agenttask/meter` on `diverge-server` (`requestId` is the sole deduplication key).
    - Every metering heartbeat returns the latest `guidance`, `previewUrl`, `iteration`, and `maxIterations`.
-   - If `tokensUsed`, `costUSD`, or `iteration` exceed the Macaroon caveats (`max_cost_usd`, `max_tokens`) or `AgentTask` spec (`budgetUSD`, `budgetTokens`, `maxIterations`), `diverge-server` atomically transitions the task to `Paused` (`Reason: BudgetExceeded`), marks the token `"revoked"` in `diverge-agenttask-tokens`, and returns `429 Too Many Requests` (`{"suspended": true}`).
+   - Budget checks compare cumulative `status.costUSD` and `status.tokensConsumed` against the effective `AgentTask` budgets: a positive `spec.budgetUSD` or `spec.budgetTokens` replaces the Macaroon's `max_cost_usd` or `max_tokens` caveat (for example, a `$1.00` `max_cost_usd` caveat with `spec.budgetUSD: "5.00"` enforces `$5.00`; the Macaroon caveat is used only when the corresponding `spec` field is unset or zero). `iteration` is checked only against `spec.maxIterations` (it is not a Macaroon caveat). When cumulative spend/tokens or `iteration` exceeds its limit, `diverge-server` atomically transitions the task to `Paused` (`Reason: BudgetExceeded`), marks the token `"revoked"` in `diverge-agenttask-tokens`, and returns `429 Too Many Requests` (`{"suspended": true}`).
 4. **Sandbox Suspension, Linked Preview Hibernation & Token Rotation**:
    - Setting `spec.suspended: true` (via `diverge task pause` or `/diverge pause` on a PR/MR) transitions the task through `Pausing` to `Paused`, revokes the Macaroon token, suspends the sandbox (`spec.operatingMode: Suspended`), and hibernates the linked preview `Environment` (`divergedev.com/hibernated: "true"`).
    - Resuming a paused task (`diverge task resume --budget +15.00 --tokens 2000000` or `/diverge resume`) un-hibernates the linked preview, wakes the sandbox, and mints a fresh capability token projected automatically into `/etc/diverge/token/token`.
@@ -108,7 +108,7 @@ agent:
 
 ```bash
 # Submit an autonomous task from your terminal
-diverge task create "Diagnose and fix N+1 query in /api/v1/checkout" --budget 5.00 --base-branch main
+diverge task create "Diagnose and fix N+1 query in /api/v1/checkout" --name fix-checkout-latency --budget 5.00 --base-branch main
 
 # List tasks, inspect status, or stream live sandbox logs
 diverge task list
@@ -136,6 +136,8 @@ metadata:
   annotations:
     divergedev.com/preview-enabled: "true"
     divergedev.com/preview-service: "checkout-api"
+    divergedev.com/preview-image: "ghcr.io/myorg/checkout-service:latest"
+    divergedev.com/preview-port: "8080"
 spec:
   objective: "Diagnose and fix N+1 query in /api/v1/checkout and verify in a preview environment"
   draftPR: true
@@ -220,9 +222,9 @@ except LLMMeterError as err:
     raise
 ```
 
-- **`200 OK`**: Returns `{"allowed": true, "suspended": false, "totalTokensUsed": 1500, "totalCostUSD": 0.0225, "iteration": 1, "maxIterations": 8, "guidance": "...", "previewUrl": "https://..."}`. Retried calls with the same `requestId` (tracked in `status.lastMeterRequestIds`) are idempotent and do not double-charge.
-- **`403 Forbidden`**: Returned if `model` is omitted or not permitted by the Macaroon's `allowed_models` caveat (`spec.capabilities`, supporting exact or prefix wildcards like `claude-*`).
-- **`429 Too Many Requests`**: Returned when cumulative usage or `iteration` exceeds `max_cost_usd`, `max_tokens`, `budgetUSD`, `budgetTokens`, or `maxIterations`. The task is automatically suspended (`status.phase = Paused`, `spec.suspended = true`) and the Macaroon token is revoked in `diverge-agenttask-tokens`.
+- **`200 OK`**: Returns `{"allowed": true, "suspended": false, "totalTokensUsed": 1500, "totalCostUSD": 0.0225, "iteration": 1, "maxIterations": 8, "guidance": "...", "previewUrl": "https://..."}`. Each distinct metered LLM call must use a unique `requestId` (even within the same iteration); retried calls whose `requestId` remains in the bounded 32-entry ring buffer (`status.lastMeterRequestIds`) are idempotent and do not double-charge.
+- **`403 Forbidden`**: Returned when `allowed_models` (`spec.capabilities`) is configured on the token/task and `model` is omitted or not permitted (supporting exact or prefix wildcards like `claude-*`).
+- **`429 Too Many Requests`**: Returned when cumulative `status.costUSD` or `status.tokensConsumed` exceeds the effective budget (`spec.budgetUSD` / `spec.budgetTokens` when positive, replacing the Macaroon's `max_cost_usd` / `max_tokens` caveat—e.g. a `$1.00` caveat with `spec.budgetUSD: "5.00"` stops at `$5.00`; the caveat applies only when the `spec` field is unset or zero) with `"reason": "budget exceeded"`, or when `iteration > spec.maxIterations` (and the effective USD/token budgets have not already been exceeded) with `"reason": "max iterations exceeded"`. If a single request crosses both a budget limit and `spec.maxIterations`, `"reason": "budget exceeded"` takes precedence. The task is automatically suspended (`status.phase = Paused`, `spec.suspended = true`) and the Macaroon token is revoked in `diverge-agenttask-tokens`.
 
 ---
 

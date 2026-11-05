@@ -35,7 +35,8 @@ Zitadel returns roles as a map rather than a flat list. Diverge v0.8.1+ handles 
 
 ## CLI & MCP Authentication
 
-Developers and AI coding agents authenticate with `diverge-server` using bearer tokens (`--token` or `DIVERGE_TOKEN`) or automatic `kubeconfig` credential fallback:
+- **`diverge dev`**: Authenticates with `diverge-server` using `--token`, `DIVERGE_TOKEN`, or automatic `kubeconfig` bearer credential fallback.
+- **`diverge mcp`**: Authenticates with `diverge-server` using `DIVERGE_TOKEN`, `DIVERGE_MACAROON_TOKEN`, or a mounted sandbox token file (`/etc/diverge/token/token`). It does not read credentials from `kubeconfig`.
 
 ```bash
 # Mint a bound Kubernetes ServiceAccount token for diverge-server
@@ -48,7 +49,7 @@ diverge mcp --server-url https://diverge.example.com
 
 ## CI/CD Authentication
 
-For automated pipelines (e.g., GitHub Actions, GitLab CI), provide `KUBECONFIG` (or `DIVERGE_TOKEN` when calling `diverge-server`):
+For automated pipelines (e.g., GitHub Actions, GitLab CI), commands that reconcile Kubernetes Custom Resources directly such as `diverge preview create` require `KUBECONFIG`:
 
 ```yaml
 # Example CI/CD step

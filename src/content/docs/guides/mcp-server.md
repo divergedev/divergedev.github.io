@@ -69,7 +69,7 @@ Before connecting your AI editor to the Diverge MCP server, ensure you have:
 
 1. **Diverge CLI** installed (`diverge version`):
    ```bash
-   curl -fsSL https://divergedev.com/install.sh | sh
+   curl -fsSL https://divergedev.com/install.sh -o install.sh && sh install.sh
    ```
 2. **Access to a Diverge API Server** (`diverge-server`):
    - **In-cluster / Remote**: An accessible ConnectRPC endpoint (e.g., `https://diverge.example.com` or via ingress).
@@ -133,7 +133,7 @@ The MCP server provides the following tools grouped by service:
 | `diverge_wait_for_ready` | Block execution until a target environment reaches `Ready` or `Failed` phase (max 5 minutes). |
 | `diverge_fetch_errors` | Retrieve the last error-level (`ERROR`, `FATAL`, `panic`) log lines from an environment to diagnose failures. |
 | `diverge_doctor` | Run cluster and environment health checks (GatewayClass, CRDs, RBAC, database connectivity). |
-| `diverge_verify` | Run the unified verification suite (Doctor diagnostics, routed HTTP readiness probe, latency SLO check, body substring match, and baseline status parity). |
+| `diverge_verify` | Run the unified verification suite (Doctor Kubernetes workload diagnostics, routed HTTP readiness status check, optional latency threshold check, and optional baseline status parity). |
 | `diverge_loadtest` | Run a bounded HTTP/gRPC load test against a preview environment and return latency/error percentiles. |
 | `diverge_visual_test` | Compare baseline and preview PNG screenshots (`baseline_path`/`preview_path` or batch `baseline_dir`/`preview_dir`) and return pixel-diff pass/fail metrics (writing diff PNGs when `diff_output_path` is set and diff data exists). |
 
@@ -271,7 +271,7 @@ Enabling `--allow-destructive` allows the AI agent to initiate irreversible dele
 | Flag | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `--server-url` | `string` | `""` | Diverge API server URL. If empty, falls back to `DIVERGE_SERVER_URL` environment variable. |
-| `--allow-destructive` | `bool` | `false` | Enable destructive tools (`delete` / `cancel` methods). |
+| `--allow-destructive` | `bool` | `false` | Enable destructive tools (`diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_delete_task`). |
 
 ### Global Flags
 

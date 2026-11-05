@@ -56,4 +56,4 @@ The Helm chart deploys the controller manager and optional components (`server`,
 | `--notifier-provider` | `noop` | SCM notifier provider (`github`, `gitlab`, `noop`) |
 | `--sandbox-provider` | `noop` | AgentTask sandbox provider (`agent-sandbox`, `pod` / `k8s-pod`, `noop`) |
 | `--async-provider` | `noop` | Async/storage provider (`kafka`, `temporal`, `redis`, `storage`, `webhook`, `composite`, `noop`) |
-| `--feature-flag-provider` | `noop` | OpenFeature flag provider (`flipt`, `unleash`, `configmap`, `noop`) |
+| `--feature-flag-provider` | `noop` | OpenFeature flag provider (`flipt`, `unleash`, `flagsmith`, `configmap`, `noop`) |

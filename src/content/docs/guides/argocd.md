@@ -35,4 +35,4 @@ services:
       values_file: values-preview.yaml
 ```
 
-When Diverge detects changes, it will dynamically generate an Argo CD Application resource with the `sourceType: kustomize`, automatically injecting the correct image overrides for your preview environment.
+When Diverge detects changes, it will dynamically generate an Argo CD Application resource with `sourceType: helm`, automatically injecting the correct image overrides for your preview environment.
