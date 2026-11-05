@@ -17,20 +17,15 @@ The Kafka provider connects to your Kafka cluster via the AdminClient API (compa
 
 #### 1. Configure the Controller
 
-Enable the Kafka provider in your Helm values or controller flags:
+Enable the Kafka provider in your Helm values (`async.provider: kafka`) and pass the Kafka broker connection flags to `diverge-controller`:
 
 ```yaml
 # Helm values.yaml
 async:
   provider: kafka
-controller:
-  extraArgs:
-    - "--kafka-brokers=kafka-broker.kafka.svc.cluster.local:9092"
-    - "--kafka-partitions=3"
-    - "--kafka-replication-factor=1"
 ```
 
-Or via CLI flags on `diverge-controller`:
+Controller CLI flags on `diverge-controller`:
 - `--async-provider=kafka`
 - `--kafka-brokers=kafka-broker.kafka.svc.cluster.local:9092`
 - `--kafka-partitions=3`
@@ -72,12 +67,9 @@ The Temporal provider assigns preview-scoped task queues. Because Temporal autom
 # Helm values.yaml
 async:
   provider: temporal
-controller:
-  extraArgs:
-    - "--temporal-namespace=default"
 ```
 
-Or via CLI flags on `diverge-controller`:
+Controller CLI flags on `diverge-controller`:
 - `--async-provider=temporal`
 - `--temporal-namespace=default`
 
@@ -198,14 +190,11 @@ For external brokers like AWS SQS/SNS, RabbitMQ, or GCP Pub/Sub, use the Webhook
 # Helm values.yaml
 async:
   provider: webhook
-controller:
-  extraArgs:
-    - "--async-webhook-endpoint=https://async-provisioner.infra.svc.cluster.local:8443/provision"
 ```
 
 > **Note:** Use HTTPS for webhook endpoints in production. HTTP (`http://`) should only be used in trusted local development environments.
 
-Or via CLI flags on `diverge-controller`:
+Controller CLI flags on `diverge-controller`:
 - `--async-provider=webhook`
 - `--async-webhook-endpoint=https://async-provisioner.infra.svc.cluster.local:8443/provision`
 

@@ -3,7 +3,7 @@ title: WebSocket Support
 description: WebSocket proxying for real-time preview environments
 ---
 
-Real-time applications often rely on persistent WebSocket connections (`ws://` and `wss://`) for live notifications, chat, streaming data, and collaborative tools. Diverge natively supports WebSocket routing across both **header-based** (`x-diverge-env` / `_diverge_env` cookie) and **subdomain** preview environments.
+Real-time applications often rely on persistent WebSocket connections (`ws://` and `wss://`) for live notifications, chat, streaming data, and collaborative tools. Diverge natively supports WebSocket routing across both **header-based** (`x-diverge-env` / `diverge_env` cookie) and **subdomain** preview environments.
 
 ---
 
@@ -43,7 +43,7 @@ spec:
 
 When `websocket.enabled: true` is set:
 1. **Gateway API `HTTPRoute` Rules**: `GatewayRouter` generates an `HTTPRoute` rule matching your preview header (`x-diverge-env: pr-123`) or preview subdomain (`pr-123.preview.example.com`) with `timeouts: { request: 0s }` (or your configured `timeout`).
-2. **Browser Cookie & Magic Link Support (`?_diverge_env=`)**: Because browser `new WebSocket(url)` constructors cannot set custom HTTP headers directly, opening your preview via a Magic Link (`?_diverge_env=pr-123`) sets the `_diverge_env=pr-123` session cookie, which `diverge-proxy` translates into `x-diverge-env: pr-123` on the initial HTTP `Upgrade: websocket` handshake.
+2. **Browser Cookie & Magic Link Support (`?_diverge_env=`)**: Because browser `new WebSocket(url)` constructors cannot set custom HTTP headers directly, opening your preview via a Magic Link (`?_diverge_env=pr-123`) sets the `diverge_env=pr-123` session cookie, which `diverge-proxy` translates into `x-diverge-env: pr-123` on the initial HTTP `Upgrade: websocket` handshake.
 3. **Baseline Fallback**: If a preview environment does not modify the WebSocket service, connections route transparently to the shared baseline deployment.
 
 ```mermaid
@@ -52,7 +52,7 @@ sequenceDiagram
     participant Gateway as diverge-proxy / Envoy Gateway
     participant PreviewPod as Preview Pod (pr-123)
 
-    Client->>Gateway: GET /ws (Upgrade: websocket, Cookie: _diverge_env=pr-123)
+    Client->>Gateway: GET /ws (Upgrade: websocket, Cookie: diverge_env=pr-123)
     Gateway->>PreviewPod: GET /ws (Upgrade: websocket, x-diverge-env: pr-123)
     PreviewPod-->>Gateway: HTTP 101 Switching Protocols
     Gateway-->>Client: HTTP 101 Switching Protocols

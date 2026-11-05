@@ -103,7 +103,7 @@ diverge validate
 
 ## Step 2: Create Your First Delta Preview
 
-Deploy a delta preview environment (`pr-42`) that overrides only the `api` service while reusing the baseline `web` frontend and other unchanged services:
+From inside your Git repository checkout (with an `origin` remote configured), deploy a delta preview environment (`pr-42`) that overrides only the `api` service while reusing the baseline `web` frontend and other unchanged services:
 
 ```bash
 diverge preview create \

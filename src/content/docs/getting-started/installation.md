@@ -46,6 +46,9 @@ sandbox:
     name: diverge-macaroon-key
     key: root-key
 
+certManager:
+  enabled: true
+
 webhook:
   validatingWebhook:
     enabled: true
@@ -70,7 +73,7 @@ Install the latest `diverge` CLI using the official install script:
 curl -fsSL https://divergedev.com/install.sh | sh
 ```
 
-If you prefer to inspect the script before executing, download and verify it first:
+If you prefer to inspect the script and its SHA-256 digest before executing, download it first:
 
 ```bash
 curl -fsSL -o install.sh https://raw.githubusercontent.com/divergedev/diverge/main/install.sh

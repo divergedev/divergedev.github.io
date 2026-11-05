@@ -108,7 +108,7 @@ agent:
 
 ```bash
 # Submit an autonomous task from your terminal
-diverge task create "Diagnose and fix N+1 query in /api/v1/checkout" --budget 5.00 --base-branch main
+diverge task create "Diagnose and fix N+1 query in /api/v1/checkout" --name fix-checkout-latency --budget 5.00 --base-branch main
 
 # List tasks, inspect status, or stream live sandbox logs
 diverge task list
@@ -136,6 +136,8 @@ metadata:
   annotations:
     divergedev.com/preview-enabled: "true"
     divergedev.com/preview-service: "checkout-api"
+    divergedev.com/preview-image: "ghcr.io/myorg/checkout-service:latest"
+    divergedev.com/preview-port: "8080"
 spec:
   objective: "Diagnose and fix N+1 query in /api/v1/checkout and verify in a preview environment"
   draftPR: true
@@ -220,9 +222,9 @@ except LLMMeterError as err:
     raise
 ```
 
-- **`200 OK`**: Returns `{"allowed": true, "suspended": false, "totalTokensUsed": 1500, "totalCostUSD": 0.0225, "iteration": 1, "maxIterations": 8, "guidance": "...", "previewUrl": "https://..."}`. Retried calls with the same `requestId` (tracked in `status.lastMeterRequestIds`) are idempotent and do not double-charge.
-- **`403 Forbidden`**: Returned if `model` is omitted or not permitted by the Macaroon's `allowed_models` caveat (`spec.capabilities`, supporting exact or prefix wildcards like `claude-*`).
-- **`429 Too Many Requests`**: Returned when cumulative usage or `iteration` exceeds `max_cost_usd`, `max_tokens`, `budgetUSD`, `budgetTokens`, or `maxIterations`. The task is automatically suspended (`status.phase = Paused`, `spec.suspended = true`) and the Macaroon token is revoked in `diverge-agenttask-tokens`.
+- **`200 OK`**: Returns `{"allowed": true, "suspended": false, "totalTokensUsed": 1500, "totalCostUSD": 0.0225, "iteration": 1, "maxIterations": 8, "guidance": "...", "previewUrl": "https://..."}`. Each distinct metered LLM call must use a unique `requestId` (even within the same iteration); retried calls whose `requestId` remains in the bounded 32-entry ring buffer (`status.lastMeterRequestIds`) are idempotent and do not double-charge.
+- **`403 Forbidden`**: Returned when `allowed_models` (`spec.capabilities`) is configured on the token/task and `model` is omitted or not permitted (supporting exact or prefix wildcards like `claude-*`).
+- **`429 Too Many Requests`**: Returned when cumulative usage exceeds the effective budget (`spec.budgetUSD` / `spec.budgetTokens` when positive, or the Macaroon's `max_cost_usd` / `max_tokens` caveats as fallback) with `"reason": "budget exceeded"`, or when `iteration > spec.maxIterations` with `"reason": "max iterations exceeded"`. The task is automatically suspended (`status.phase = Paused`, `spec.suspended = true`) and the Macaroon token is revoked in `diverge-agenttask-tokens`.
 
 ---
 
