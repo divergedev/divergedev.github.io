@@ -127,7 +127,7 @@ Show active preview environments and groups.
 ### `diverge task`
 Create and manage spec-driven autonomous AI developer tasks (`AgentTask` CRDs) in isolated Kubernetes sandboxes:
 - `diverge task init [--force]` — Scaffold `.diverge/agent.yaml` in your repository
-- `diverge task create "<objective>"` — Create an `AgentTask` (`--name`, `--repo`, `--base-branch`, `--budget`, `--iterations`, `--capabilities`, `--pool`, `--template`, `--dry-run`, `-o/--output yaml|json`)
+- `diverge task create "<objective>"` — Create an `AgentTask` (`--name`, `--repo`, `--base-branch`, `--budget`, `--iterations`, `--capabilities`, `--pool`, `--template`, `--dry-run`, `-o/--output text|yaml|json`; default: `text`)
 - `diverge task list` — List `AgentTask` resources in the namespace
 - `diverge task status <name>` — Show phase (`Pending`, `Provisioning`, `Active`, `Pausing`, `Paused`, `Completed`, `Failed`), iteration progress, token/USD spend, and linked preview URL
 - `diverge task logs <name> [-f]` — Stream live execution logs from the sandbox pod
@@ -146,7 +146,7 @@ Live terminal dashboard (alias: `diverge watch`) displaying fleet FinOps hourly 
 Validate `.diverge.yaml` against JSON Schema or print the embedded schema (`--print-schema`).
 
 ### `diverge verify <env-name> [path-or-url]`
-Run a unified verification suite against a preview `Environment` or `PreviewGroup` combining Kubernetes workload diagnostics (`doctor`), routed HTTP readiness probes (with automatic `x-diverge-env` and W3C `baggage` injection), latency SLO assertions, response body substring checks, and optional baseline parity comparisons.
+Run a unified verification suite against a preview `Environment` or `PreviewGroup` combining Kubernetes workload diagnostics (`doctor`), routed HTTP readiness probes (with automatic `x-diverge-env` and W3C `baggage` injection), latency SLO assertions, response body substring checks, and optional baseline parity comparisons. When targeting a `PreviewGroup` with multiple exposed service URLs in `status.services` (and `--base-url` / `spec.routing.externalUrl` is not overriding it), `diverge verify` automatically probes every service endpoint and reports per-service checks (`http-status:<service>:<path>`, `latency-slo:<service>:<path>`, `body-contains:<service>:<path>`, `baseline-parity:<service>:<path>`).
 - `--path` — HTTP path(s) to probe (repeatable, default: `["/"]`; ignored if a positional `path-or-url` argument is provided)
 - `--expect-status` — Expected HTTP status code (default: `0`, accepting any final `2xx`/`3xx` status `< 400` after following redirects; set e.g. `200` to require an exact status code)
 - `--max-latency` — Maximum acceptable preview response latency (e.g., `500ms`)

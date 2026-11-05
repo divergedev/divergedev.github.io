@@ -62,35 +62,31 @@ diverge init --config
 version: "1"
 
 services:
-  web:
+  - name: web
     paths:
       - "apps/web/**"
-    image:
-      repository: "ghcr.io/myorg/web"
-      tag_template: "pr-{{.MR}}"
+    image: "ghcr.io/myorg/web"
     entrypoint: true
     dependsOn:
-      - "api"
-  api:
+      - service: "api"
+        protocol: "http"
+  - name: api
     paths:
       - "apps/api/**"
-    image:
-      repository: "ghcr.io/myorg/api"
-      tag_template: "pr-{{.MR}}"
+    image: "ghcr.io/myorg/api"
 
-defaults:
-  deploy:
-    mode: delta
-    namespace: same
-  routing:
-    mode: header
-    header_key: x-diverge-env
-  database:
-    mode: schema
-    seed_source: public
-  lifecycle:
-    ttl: 24h
-    cleanup_on_merge: true
+deploy:
+  mode: delta
+  namespace: same
+routing:
+  mode: header
+  headerKey: x-diverge-env
+database:
+  mode: schema
+  seedSource: public
+lifecycle:
+  ttl: 24h
+  cleanupOnMerge: true
 ```
 
 Validate your configuration against the embedded JSON Schema:

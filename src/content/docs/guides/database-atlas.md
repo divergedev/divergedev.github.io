@@ -32,27 +32,29 @@ Configure Atlas under the `database` section of your `.diverge.yaml`:
 # .diverge.yaml
 version: "1"
 
-defaults:
-  database:
-    mode: schema
-    connection_ref: staging-postgres
-    atlas:
-      mode: versioned
-      engine: job # "job" (standalone K8s Job) or "operator" (Atlas CRDs)
-      migration_config_map: app-migrations
-      blocking: true # Environment waits for migrations before marking DatabaseReady
-      policy:
-        destructive: error # "error" | "warn" | "allow"
-
-environments:
-  declarative-preview:
+services:
+  - name: api
+    paths: ["apps/api/**"]
+  - name: declarative-preview
+    paths: ["apps/declarative/**"]
     database:
       atlas:
         mode: declarative
         engine: job
-        schema_config_map: app-schema
+        schemaConfigMap: app-schema
         policy:
           destructive: allow
+
+database:
+  mode: schema
+  connectionRef: staging-postgres
+  atlas:
+    mode: versioned
+    engine: job # "job" (standalone K8s Job) or "operator" (Atlas CRDs)
+    migrationConfigMap: app-migrations
+    blocking: true # Environment waits for migrations before marking DatabaseReady
+    policy:
+      destructive: error # "error" | "warn" | "allow"
 ```
 
 ---
@@ -66,11 +68,11 @@ In versioned mode, Atlas runs `atlas migrate apply` against your preview databas
 ```yaml
 database:
   mode: schema
-  connection_ref: staging-postgres
+  connectionRef: staging-postgres
   atlas:
     mode: versioned
     engine: job
-    migration_config_map: db-migrations
+    migrationConfigMap: db-migrations
 ```
 
 The ConfigMap should contain the files in your migrations directory:
@@ -102,11 +104,11 @@ In declarative mode, Atlas inspects the preview database schema and applies sche
 ```yaml
 database:
   mode: schema
-  connection_ref: staging-postgres
+  connectionRef: staging-postgres
   atlas:
     mode: declarative
     engine: job
-    schema_config_map: app-schema
+    schemaConfigMap: app-schema
     policy:
       destructive: allow
 ```
@@ -164,7 +166,7 @@ database:
   atlas:
     engine: operator
     mode: versioned
-    migration_config_map: db-migrations
+    migrationConfigMap: db-migrations
 ```
 
 The Diverge reconciler monitors the `Ready` condition on the generated Atlas custom resource and updates `DatabaseReady` accordingly.
