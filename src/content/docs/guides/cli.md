@@ -113,6 +113,43 @@ Watch until Ready/Failed.
 ### `diverge providers list`
 List providers.
 
+### `diverge replay <env-name> --from <trace.jsonl|trace.har|trace.json>`
+Replay recorded HTTP, ConnectRPC, and Protobuf/gRPC traffic traces against both baseline (unrouted) and a candidate preview `Environment` or `PreviewGroup` (with `x-diverge-env` and W3C `baggage` injected). Compares HTTP and gRPC status code parity, p50/p95 latency, JSON structural schemas, and binary Protobuf wire tags (or typed `.binpb` descriptors). Because `diverge replay` executes each recorded request against the baseline and—whenever the baseline request completes without a transport error—against the preview, always target safe environments and filter state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`, or mutating RPCs) from traces before replaying.
+- `-f, --from` — Path to request trace file (`.jsonl`, `.har`, `.json`, or `-` for stdin; required)
+- `--base-url` — Override baseline gateway URL (rewrites every captured URL in the trace to this scheme and host, even if the trace entry was recorded against another domain)
+- `--preview-url` — Optional separate preview base URL (for subdomain-routed environments)
+- `--header-key`, `--header-value` — Override routing header key (default: `x-diverge-env`) and value (default: environment name)
+- `-c, --concurrency` — Number of concurrent replay workers (default: `4`)
+- `--timeout` — Per-request HTTP timeout (default: `15s`)
+- `--max-latency` — Maximum acceptable preview response latency per request (e.g., `500ms`)
+- `--compare-values` — Compare exact scalar values in addition to JSON/Protobuf field types and wire schema
+- `--fail-on-extra-fields` — Treat newly added JSON keys or Protobuf tags in preview as breaking
+- `--fail-on-status-diff` — Fail if baseline and preview HTTP status codes differ (default: `true`)
+- `--fail-on-contract-diff` — Fail if breaking JSON or Protobuf contract diffs are detected (default: `true`)
+- `--ignore-field` — Field name or path to ignore during diffing (repeatable, e.g., `--ignore-field request_id`)
+- `--proto-descriptor` — Optional path to compiled Protobuf `FileDescriptorSet` (`.binpb`) for schema-aware decoding
+- `--proto-message` — Default fully-qualified Protobuf message type for response decoding
+- `--github-summary` — Write Markdown replay report to `$GITHUB_STEP_SUMMARY` (or stdout, or stderr when `--json` is set)
+- `--json` — Output machine-readable JSON replay report
+
+```bash
+# Replay a JSONL request trace against preview environment pr-42
+diverge replay pr-42 --from ./traces/checkout.jsonl
+
+# Replay a filtered single-service HAR file and write a GitHub Step Summary
+# Note: remove any recorded diverge_env routing cookies and filter out other hosts before using --base-url
+diverge replay pr-42 --from ./recording.har --base-url https://staging.example.com --github-summary
+
+# Replay binary Protobuf/gRPC traffic with a compiled FileDescriptorSet (.binpb)
+diverge replay pr-42 --from ./grpc-trace.jsonl --proto-descriptor ./descriptors.binpb --proto-message acme.v1.ChargeResponse
+```
+
+:::caution
+- **Side Effects on Baseline & Preview**: Replay sends live requests to the baseline and, when the baseline request succeeds, to the preview. Only replay against safe targets and filter out non-idempotent or state-changing requests first.
+- **Recorded `diverge_env` Cookies in HAR Files**: The replay runner strips recorded routing headers (`x-diverge-env`) and `baggage` entries from baseline requests, but it does **not** remove recorded `diverge_env` sticky-routing cookies from `Cookie` headers. Remove any `diverge_env` cookie from the HAR file before replaying so requests are not routed to the wrong preview.
+- **`--base-url` on Multi-Host HAR Files**: Passing `--base-url` redirects every captured URL in the trace to the specified host, including URLs recorded for other domains. Multi-host browser HAR captures can therefore produce unrelated failures and forward captured `Cookie` or `Authorization` headers to the `--base-url` host. Filter HAR files to the intended target service before replay.
+:::
+
 ### `diverge route <service>`
 Simulate request routing through the topology.
 - `--config` — Path to .diverge.yaml
