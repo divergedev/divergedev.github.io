@@ -56,7 +56,7 @@ Diverge is rigorously tested across packages to ensure robust preview environmen
 
 ## Recently Shipped
 
-- **Deterministic Traffic Replay & Contract Diffing (`v0.20`)** — `diverge replay` CLI and `diverge_replay` MCP tool for replaying `.jsonl`, `.har`, and `.json` traces against baseline and preview environments with HTTP/gRPC status parity, p50/p95 latency SLOs, JSON schema diffing, and binary Protobuf wire/descriptor contract diffing
+- **Deterministic Traffic Replay & Contract Diffing (`v0.20`)** — `diverge replay` CLI and `diverge_replay` MCP tool for replaying `.jsonl`, `.har`, and `.json` traces against baseline and preview environments with HTTP/gRPC status parity, p50/p95 latency reporting, per-request latency thresholds, JSON schema diffing, and binary Protobuf wire/descriptor contract diffing
 - **Production AgentTask Sandboxes & `diverge task` CLI (`v0.19`)** — `.diverge/agent.yaml` repository config, `diverge task init|create|status|list|logs|guide|pause|resume|delete`, `SandboxSuspender` pod suspension + linked preview hibernation, and idempotent `requestId` LLM metering returning live `guidance` and `previewUrl`
 - **Unified CI Verification & Full-Stack Data Isolation (`v0.18`)** — `diverge verify` SLO & baseline parity gate with `$GITHUB_STEP_SUMMARY`, S3/GCS/MinIO object storage prefix isolation, Redis/Valkey keyspace isolation, and topological PostgreSQL FK/view cloning
 - **Autonomous Agent Sandboxes (`AgentTask`)** — Isolated coding agent pods with Macaroon capability tokens, automatic linked preview environments (`divergedev.com/preview-enabled: "true"`), and live LLM cost/token metering (`POST /api/v1/agenttask/meter`)
