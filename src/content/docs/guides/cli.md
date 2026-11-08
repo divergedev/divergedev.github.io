@@ -114,7 +114,7 @@ Watch until Ready/Failed.
 List providers.
 
 ### `diverge replay <env-name> --from <trace.jsonl|trace.har|trace.json>`
-Replay recorded HTTP, ConnectRPC, and Protobuf/gRPC traffic traces against both baseline (unrouted) and a candidate preview `Environment` or `PreviewGroup` (with `x-diverge-env` and W3C `baggage` injected). Compares HTTP and gRPC status code parity, p50/p95 latency, JSON structural schemas, and binary Protobuf wire tags (or typed `.binpb` descriptors). Because `diverge replay` executes each recorded request against the baseline and—whenever the baseline request completes without a transport error—against the preview, always target safe environments and filter state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`, or mutating RPCs) from traces before replaying.
+Replay recorded HTTP, ConnectRPC, and Protobuf/gRPC traffic traces against both baseline (unrouted) and a candidate preview `Environment` or `PreviewGroup` (with `x-diverge-env` and W3C `baggage` injected). Compares HTTP and gRPC status code parity, p50/p95 latency, JSON structural schemas, and binary Protobuf wire tags (or typed `.binpb` descriptors). Because `diverge replay` executes each recorded request against the baseline and attempts the preview request only when baseline execution completes without error (including passing the 10 MiB response-size check, whereas baseline HTTP or gRPC status does not determine whether preview is attempted), always target safe environments and filter state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`, or mutating RPCs) from traces before replaying. In addition, replay forwards recorded headers and bodies without sanitizing credentials or sensitive data, and recorded `diverge_env` sticky-routing cookies are not stripped by the replay runner and can route requests from any supported trace format (`.jsonl`, `.har`, or `.json`) to a preview even when `--base-url` is omitted—always remove or replace captured credentials and sensitive data, remove `diverge_env` routing cookies from all traces, and verify that the baseline URL serves the baseline before replaying.
 - `-f, --from` — Path to request trace file (`.jsonl`, `.har`, `.json`, or `-` for stdin; required)
 - `--base-url` — Override baseline gateway URL (rewrites every captured URL in the trace to this scheme and host, even if the trace entry was recorded against another domain)
 - `--preview-url` — Optional separate preview base URL (for subdomain-routed environments)
@@ -137,7 +137,8 @@ Replay recorded HTTP, ConnectRPC, and Protobuf/gRPC traffic traces against both 
 diverge replay pr-42 --from ./traces/checkout.jsonl
 
 # Replay a filtered single-service HAR file and write a GitHub Step Summary
-# Note: remove any recorded diverge_env routing cookies and filter out other hosts before using --base-url
+# Note: remove any recorded diverge_env routing cookies, strip or replace captured credentials/sensitive data,
+# and filter out other hosts before using --base-url
 diverge replay pr-42 --from ./recording.har --base-url https://staging.example.com --github-summary
 
 # Replay binary Protobuf/gRPC traffic with a compiled FileDescriptorSet (.binpb)
@@ -145,8 +146,8 @@ diverge replay pr-42 --from ./grpc-trace.jsonl --proto-descriptor ./descriptors.
 ```
 
 :::caution
-- **Side Effects on Baseline & Preview**: Replay sends live requests to the baseline and, when the baseline request succeeds, to the preview. Only replay against safe targets and filter out non-idempotent or state-changing requests first.
-- **Recorded `diverge_env` Cookies in HAR Files**: The replay runner strips recorded routing headers (`x-diverge-env`) and `baggage` entries from baseline requests, but it does **not** remove recorded `diverge_env` sticky-routing cookies from `Cookie` headers. Remove any `diverge_env` cookie from the HAR file before replaying so requests are not routed to the wrong preview.
+- **Side Effects & Unsanitized Request Data**: Replay forwards recorded headers and bodies without sanitizing credentials or sensitive data, and attempts the preview request whenever baseline execution completes without error (including passing the 10 MiB response-size check, regardless of baseline HTTP or gRPC status). Always target safe environments, filter out non-idempotent or state-changing requests, and remove or replace captured credentials and sensitive data before replay.
+- **Recorded `diverge_env` Cookies Across All Trace Formats**: The replay runner strips recorded routing headers (`x-diverge-env`) and `baggage` entries from baseline requests, but it does **not** remove recorded `diverge_env` sticky-routing cookies from `Cookie` headers. Because a `diverge_env` cookie can route requests from any supported trace format (`.jsonl`, `.har`, or `.json`) to a preview even when `--base-url` is omitted, remove any `diverge_env` cookie from all traces and verify that the baseline URL serves the baseline before replaying.
 - **`--base-url` on Multi-Host HAR Files**: Passing `--base-url` redirects every captured URL in the trace to the specified host, including URLs recorded for other domains. Multi-host browser HAR captures can therefore produce unrelated failures and forward captured `Cookie` or `Authorization` headers to the `--base-url` host. Filter HAR files to the intended target service before replay.
 :::
 
