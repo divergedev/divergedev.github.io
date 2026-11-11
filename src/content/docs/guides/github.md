@@ -7,23 +7,30 @@ Diverge provides first-class GitHub integration for automatic preview environmen
 
 ## 1. Controller Setup
 
-Install the Diverge controller with GitHub notifier enabled:
+Create Secrets for your GitHub API token and webhook shared secret in the release namespace, then install the Diverge Helm chart:
 
 ```bash
+kubectl -n diverge-system create secret generic diverge-github --from-literal=token=<github-token>
+kubectl -n diverge-system create secret generic diverge-webhook-token --from-literal=token=<webhook-secret>
+
 helm install diverge oci://ghcr.io/divergedev/charts/diverge \
   --namespace diverge-system \
   --create-namespace \
-  --set notifierProvider=github \
-  --set controller.env.DIVERGE_NOTIFIER_TOKEN=<github-token> \
-  --set controller.env.DIVERGE_WEBHOOK_SECRET=<webhook-secret>
+  --set notifier.provider=github \
+  --set notifier.tokenSecretRef.name=diverge-github \
+  --set webhook.secretName=diverge-webhook-token \
+  --set defaultNamespace=diverge-previews
 ```
+
+Anything the chart does not model directly can be passed via `extraArgs` (controller CLI flags) and `extraEnv` (a list of `EnvVar` entries).
 
 ### Required Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `DIVERGE_NOTIFIER_TOKEN` | GitHub personal access token or fine-grained token with `issues:write` and `statuses:write` |
-| `DIVERGE_WEBHOOK_SECRET` | Shared secret for HMAC-SHA256 webhook signature validation |
+| `DIVERGE_NOTIFIER_TOKEN` | GitHub personal access token or fine-grained token with `issues:write` and `statuses:write` (set via `notifier.tokenSecretRef`) |
+| `DIVERGE_WEBHOOK_SECRET` | Shared secret for HMAC-SHA256 webhook signature validation (set via `webhook.secretName`) |
+| `DIVERGE_BASE_URL` | Optional API base URL for GitHub Enterprise Server (set via `notifier.baseUrl`; defaults to `https://api.github.com`) |
 
 ---
 
@@ -53,6 +60,10 @@ For PreviewGroups (multi-service), add a second webhook:
 GitHub webhook payloads are validated using HMAC-SHA256 signature verification (`X-Hub-Signature-256`) with constant-time comparison.
 :::
 
+:::tip[Organization-Level Webhooks & Opt-In Repositories]
+With `deploy.provider: direct` and `deploy.manifestSourceType: serviceconfig`, Diverge automatically skips Pull Request events from repositories that do not have a `.diverge.yaml` (`kind: ServicePreview`) on the PR head branch, and removes any existing preview if a subsequent commit deletes `.diverge.yaml`. You can register one organization-level webhook and let individual repositories opt in by adding `.diverge.yaml` (setting `spec.image.repository` to e.g. `ghcr.io/org/service` without a tag or digest).
+:::
+
 ### Webhook Events Handled
 
 | Event / Action | Diverge Behavior |
@@ -60,7 +71,7 @@ GitHub webhook payloads are validated using HMAC-SHA256 signature verification (
 | `pull_request`: `opened`, `reopened` | Creates `Environment` / `PreviewGroup` CR |
 | `pull_request`: `synchronize` (new push) | Updates the CR with new commit SHA |
 | `pull_request`: `closed` | Deletes the CR (triggers teardown) |
-| `issue_comment`: `created` | Parses `/diverge` slash commands on PRs (`preview`, `fix`, `guide`, `budget`, `status`, `help`, `extend-ttl`, `teardown`, `pause`, `resume`) |
+| `issue_comment`: `created` | Parses `/diverge` slash commands on PRs (`preview`, `verify`, `replay`, `fix`, `guide`, `budget`, `status`, `help`, `extend-ttl`, `teardown`, `pause`, `resume`) |
 
 ---
 
@@ -71,6 +82,8 @@ When `Issue comments` (`issue_comment`) events are delivered to `/github-webhook
 | Slash Command | Action |
 |---------------|--------|
 | `/diverge preview` | Provisions or refreshes the `Environment` for the Pull Request (`pr-<number>`) |
+| `/diverge verify [path] [--fix]` | Runs Kubernetes workload `doctor` diagnostics and routed HTTP readiness + baseline parity probes against the PR preview environment (defaults to `/`) and posts a Markdown scorecard; pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
+| `/diverge replay [path ...] [--fix]` | Replays inline whitespace-separated `GET` probe paths against baseline and the PR preview environment (defaults to `/`), diffing status codes, latency, and JSON/Protobuf response contracts (supporting header-routed and subdomain-routed previews when a baseline URL is configured via `spec.routing.externalUrl` or `DIVERGE_BASE_URL`); pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
 | `/diverge fix <objective>` | Spawns an autonomous `AgentTask` (`fix-pr-<number>`) with `divergedev.com/preview-enabled: "true"` and your custom objective (defaults to fixing PR issues) |
 | `/diverge guide <hint>` | Sends live steering guidance (`divergedev.com/guidance`) delivered to the active agent on its next metering heartbeat |
 | `/diverge budget [+$budget] [tokens]` | Bumps the active `AgentTask`'s USD and/or token budget without changing suspension state |
@@ -89,9 +102,13 @@ For security, Diverge verifies the commenter's `author_association` before execu
 
 ## 3. GitHub Actions Workflow
 
-### Turnkey Composite Action (`divergedev/diverge@v0.20.0` — Recommended)
+### Turnkey Composite Action (`divergedev/diverge@v0.23.0` — Recommended)
 
-Use the official `divergedev/diverge@v0.20.0` composite GitHub Action (defined in the root [`action.yml`](https://github.com/divergedev/diverge/blob/main/action.yml) of `divergedev/diverge`) to validate `.diverge.yaml`, run `diverge diff`, deploy a delta `PreviewGroup` for only modified microservices, run `diverge verify` SLO/baseline checks, and pass routing headers directly into Playwright or Cypress E2E tests:
+Use the official `divergedev/diverge@v0.23.0` composite GitHub Action (defined in the root [`action.yml`](https://github.com/divergedev/diverge/blob/main/action.yml) of `divergedev/diverge`) to validate `.diverge.yaml`, run `diverge diff`, deploy a delta `PreviewGroup` for only modified microservices, run `diverge verify` SLO/baseline checks, replay recorded `.jsonl` / `.har` traffic traces (including stateful `extract` / `{{var}}` multi-step flows and `--auto-fix` self-healing), and pass routing headers directly into Playwright or Cypress E2E tests:
+
+:::caution[Sanitize Replay Traces Before Committing to Git]
+Scrub recorded `.jsonl` / `.har` traces with `diverge record` (plus `--redact-body-field`) or `diverge replay sanitize` **before committing them to the repository**. Runtime CI inputs (`replay-strip-auth: "true"`, `replay-redact-query`, `replay-redact-body-fields`) provide an additional safeguard during replay rather than a substitute for pre-commit sanitization.
+:::
 
 ```yaml
 name: Diverge Preview Environment
@@ -119,7 +136,7 @@ jobs:
 
       - name: Deploy Diverge Delta Preview
         id: diverge
-        uses: divergedev/diverge@v0.20.0
+        uses: divergedev/diverge@v0.23.0
         with:
           action: deploy
           kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
@@ -150,7 +167,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: divergedev/diverge@v0.20.0
+      - uses: divergedev/diverge@v0.23.0
         with:
           action: teardown
           kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
@@ -171,17 +188,19 @@ export default defineConfig({
 });
 ```
 
-#### `divergedev/diverge@v0.20.0` Inputs
+#### `divergedev/diverge@v0.23.0` Inputs
 
 | Input | Default | Description |
 | :--- | :--- | :--- |
-| `action` | `deploy` | Action to execute: `validate`, `diff`, `deploy`, or `teardown` |
+| `action` | `deploy` | Action to execute: `validate`, `diff`, `deploy`, `verify`, `replay`, or `teardown` |
 | `version` | `latest` | Diverge CLI version to install (or `installed` to use pre-installed binary) |
 | `config` | `.diverge.yaml` | Path to `.diverge.yaml` configuration file |
 | `kubeconfig` | `""` | Raw or base64-encoded kubeconfig for the target Kubernetes cluster |
 | `namespace` | `default` | Default Kubernetes namespace for preview resources |
 | `preview-name` | `""` | Explicit `PreviewGroup` name override (defaults to `pr-<number>` or branch slug) |
 | `base-ref` | `origin/<base_ref>` | Git base reference for `diverge diff` |
+| `branch` | `""` | Source branch name override |
+| `pr-number` | `""` | Pull request number override |
 | `services` | `""` | Explicit comma- or newline-separated service specs (overrides `diverge diff`) |
 | `image-registry` | `""` | Container registry prefix for changed service images (e.g. `ghcr.io/acme`) |
 | `image-tag` | `""` | Image tag for changed services (defaults to resolved `preview-name`) |
@@ -194,10 +213,23 @@ export default defineConfig({
 | `verify` | `false` | Run `diverge verify` after deployment to validate workload health, HTTP readiness, and latency SLOs |
 | `verify-path` | `/` | HTTP path to probe when `verify` is `"true"` |
 | `verify-compare-baseline` | `false` | Compare preview HTTP status against unrouted baseline when `verify` is `"true"` |
-| `verify-max-latency` | `""` | Maximum allowed preview response latency when `verify` is `"true"` (e.g. `500ms`) |
+| `verify-max-latency` | `5s` | Maximum allowed preview response latency when `verify` is `"true"` (e.g. `500ms`, `2s`) |
+| `replay` | `false` | Run `diverge replay` after deployment (`"true"` / `"false"`) |
+| `replay-from` | `""` | Path to HAR (`.har`) or JSONL (`.jsonl`) trace file for `diverge replay` |
+| `replay-max-latency` | `""` | Maximum allowed preview latency per replayed request (e.g. `500ms`, `2s`) |
+| `replay-compare-values` | `false` | Compare exact scalar values during replay instead of structural types |
+| `replay-fail-on-extra-fields` | `false` | Fail replay when preview adds new fields not present in baseline |
+| `replay-ignore-fields` | `""` | Comma-separated field paths or Protobuf field numbers to ignore during replay |
+| `replay-filter-hosts` | `""` | Comma-separated host patterns to include from HAR/JSONL traces during replay |
+| `replay-strip-auth` | `false` | Strip recorded `Authorization`, `Cookie`, and `X-Api-Key` headers and auth query tokens before replay |
+| `replay-redact-query` | `""` | Comma-separated query parameter names to redact with `[REDACTED]` before replay |
+| `replay-redact-body-fields` | `""` | Comma-separated JSON request body field names or dot-paths to redact before replay |
+| `replay-proto-descriptor` | `""` | Optional compiled Protobuf `FileDescriptorSet` (`.pb`/`.desc`) for named-field Protobuf diffs |
+| `replay-proto-message` | `""` | Fully-qualified Protobuf response message name when using `replay-proto-descriptor` |
+| `auto-fix` | `false` | Automatically create or update a self-healing `AgentTask` when `verify` or `replay` fails |
 | `dry-run` | `false` | Render `PreviewGroup` manifest without applying to Kubernetes |
 
-#### `divergedev/diverge@v0.20.0` Outputs
+#### `divergedev/diverge@v0.23.0` Outputs
 
 | Output | Example | Description |
 | :--- | :--- | :--- |
@@ -355,7 +387,7 @@ To pin a specific version:
 ```yaml
 - uses: divergedev/setup-diverge@v1
   with:
-    version: '0.18.0'
+    version: '0.23.0'
 ```
 
 It resolves the latest release via GitHub API, caches the binary per OS/arch/version using `actions/cache`, and adds `diverge` to `PATH`.

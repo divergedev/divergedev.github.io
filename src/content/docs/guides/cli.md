@@ -113,13 +113,44 @@ Watch until Ready/Failed.
 ### `diverge providers list`
 List providers.
 
+### `diverge record [env-name] --target <upstream-url> --output <trace.jsonl>`
+Start a local reverse-proxy recorder (accepting HTTP/1.1 and HTTP/2 cleartext `h2c` client connections on its listener) that forwards incoming HTTP, ConnectRPC, gRPC-Web, binary Protobuf-over-HTTP, and non-streaming gRPC requests (including upstream HTTP/2 trailers over `https://` targets) to an upstream target URL (or a Diverge preview environment's gateway URL with automatic routing header injection) and writes a deterministic `.jsonl` trace for `diverge replay`. Upstream `http://` targets use HTTP/1.1 rather than cleartext HTTP/2 (`h2c`), so native gRPC services requiring upstream `h2c` cannot be recorded through it; streaming gRPC is also unsupported because the recorder buffers the entire request body before forwarding upstream.
+- `-t, --target` — Upstream HTTP target URL to proxy and record (optional when `[env-name]` is provided)
+- `-l, --listen` — Local address for the recording reverse proxy (default: `127.0.0.1:8095`)
+- `-o, --output` — Output JSONL trace file path, or `-` for stdout (default: `trace.jsonl`)
+- `--strip-auth` — Strip `Authorization`, `Proxy-Authorization`, `Cookie`, and `X-Api-Key` headers, URL userinfo, and default auth query tokens (default: `true`)
+- `--strip-header` — Additional request header name to strip before recording (repeatable)
+- `--redact-query` — Additional query parameter name to redact with `[REDACTED]` (repeatable)
+- `--redact-body-field` — JSON request body field name or dot-path to redact with `[REDACTED]` (repeatable, e.g., `password,$.user.ssn`)
+- `--auto-chain` — Automatically extract top-level `id` or `uuid` fields from `2xx` `POST`/`PUT` JSON responses (nested fields such as `data.id` are not auto-detected) and parameterize subsequent request paths with `{{stepN_id}}` (for `id`) or `{{stepN_uuid}}` (for `uuid`)
+- `--max-requests` — Stop recording automatically after capturing `N` requests (`0` = unlimited)
+- `-d, --duration` — Stop recording automatically after this duration (e.g., `30s`)
+
+:::caution[Redaction Limits Before Committing Traces]
+By default (`--strip-auth=true`), `diverge record` strips `Authorization`, `Proxy-Authorization`, `Cookie`, and `X-Api-Key` headers, URL userinfo, and default auth query tokens. **JSON request body fields are not redacted by default** — pass `--redact-body-field <field>` (e.g., `--redact-body-field password,cvv`) to scrub sensitive JSON fields, and note that binary request bodies (`application/proto`, `application/octet-stream`) are captured as base64 and cannot be field-redacted.
+:::
+
+```bash
+# Record 20 requests against staging and scrub auth + sensitive JSON body fields
+diverge record --target https://staging.example.com --output ./traces/checkout.jsonl --max-requests 20 --redact-body-field password,cvv
+
+# Record CRUD traffic against pr-42 for 30s and auto-chain dynamic top-level IDs
+diverge record pr-42 --output ./traces/pr-42.jsonl --duration 30s --auto-chain
+```
+
 ### `diverge replay <env-name> --from <trace.jsonl|trace.har|trace.json>`
-Replay recorded HTTP, ConnectRPC, and Protobuf/gRPC traffic traces against both baseline (unrouted) and a candidate preview `Environment` or `PreviewGroup` (with `x-diverge-env` and W3C `baggage` injected). Compares HTTP and gRPC status code parity, p50/p95 latency, JSON structural schemas, and binary Protobuf wire tags (or typed `.binpb` descriptors). Because `diverge replay` executes each recorded request against the baseline and attempts the preview request only when baseline execution completes without error (including passing the 10 MiB response-size check, whereas baseline HTTP or gRPC status does not determine whether preview is attempted), always target safe environments and filter state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`, or mutating RPCs) from traces before replaying. In addition, replay forwards recorded headers and bodies without sanitizing credentials or sensitive data, and recorded `diverge_env` sticky-routing cookies are not stripped by the replay runner and can route requests from any supported trace format (`.jsonl`, `.har`, or `.json`) to a preview even when `--base-url` is omitted—always remove or replace captured credentials and sensitive data, remove `diverge_env` routing cookies from all traces, and verify that the baseline URL serves the baseline before replaying.
+Replay recorded HTTP, ConnectRPC, and Protobuf/gRPC traffic traces against both baseline (unrouted) and a candidate preview `Environment` or `PreviewGroup` (with `x-diverge-env` and W3C `baggage` injected). Compares HTTP and gRPC status code parity, p50/p95 latency, JSON structural schemas, and binary Protobuf wire tags (or typed `.binpb` descriptors). Automatically strips recorded `diverge_env` sticky-routing cookies from both baseline and preview `Cookie` headers while preserving non-routing cookies. Trace entries also support stateful multi-step variable chaining via `extract` rules (`$.nested.items[0].id`, `$header.<Name>` / `header:<Name>`, `$status`) and `{{var}}` interpolation across subsequent request paths, headers, and bodies using isolated per-environment variable stores (masking header-extracted values with `[REDACTED]` in `EntryResult.ExtractedVars`, though values interpolated into `EntryResult.Path` are not masked—avoid placing credentials in URL paths).
+
+**Subcommands:**
+- `diverge replay sanitize --from <trace.har|trace.json|trace.jsonl> [--output <clean.jsonl>]` — Convert and scrub a raw trace offline (`--strip-auth` default `true`, `--strip-header`, `--redact-query`, `--redact-body-field`, `--filter-host`) into a deterministic `.jsonl` file.
+
+**Flags:**
 - `-f, --from` — Path to request trace file (`.jsonl`, `.har`, `.json`, or `-` for stdin; required)
-- `--base-url` — Override baseline gateway URL (rewrites every captured URL in the trace to this scheme and host, even if the trace entry was recorded against another domain)
+- `--base-url` — Override baseline gateway URL (rewrites relative paths and captured URLs in the trace to this scheme and host; pair with `--filter-host` on multi-host `.har` files)
 - `--preview-url` — Optional separate preview base URL (for subdomain-routed environments)
 - `--header-key`, `--header-value` — Override routing header key (default: `x-diverge-env`) and value (default: environment name)
 - `-c, --concurrency` — Number of concurrent replay workers (default: `4`)
+- `--sequential` — Execute trace entries strictly sequentially in trace order (automatically enabled when entries use `extract` or `{{var}}` chaining)
 - `--timeout` — Per-request HTTP timeout (default: `15s`)
 - `--max-latency` — Maximum acceptable preview response latency per request (e.g., `500ms`)
 - `--compare-values` — Compare exact scalar values in addition to JSON/Protobuf field types and wire schema
@@ -127,28 +158,34 @@ Replay recorded HTTP, ConnectRPC, and Protobuf/gRPC traffic traces against both 
 - `--fail-on-status-diff` — Fail if baseline and preview HTTP status codes differ (default: `true`)
 - `--fail-on-contract-diff` — Fail if breaking JSON or Protobuf contract diffs are detected (default: `true`)
 - `--ignore-field` — Field name or path to ignore during diffing (repeatable, e.g., `--ignore-field request_id`)
+- `--filter-host` — Retain only trace entries matching the given hostname or wildcard pattern (repeatable, e.g., `--filter-host api.example.com --filter-host '*.example.com'`)
+- `--strip-header` — Request header name to strip before replaying (repeatable, e.g., `--strip-header X-Internal-Token`)
+- `--strip-auth` — Strip `Authorization`, `Proxy-Authorization`, `Cookie`, and `X-Api-Key` headers, URL userinfo, and default auth query tokens before replaying (default: `false`)
+- `--redact-query` — Query parameter name to redact with `[REDACTED]` before replaying (repeatable)
+- `--redact-body-field` — JSON request body field name or dot-path to redact with `[REDACTED]` before replaying (repeatable)
 - `--proto-descriptor` — Optional path to compiled Protobuf `FileDescriptorSet` (`.binpb`) for schema-aware decoding
 - `--proto-message` — Default fully-qualified Protobuf message type for response decoding
+- `--auto-fix` — Automatically create or update a self-healing `AgentTask` (`autofix-replay-<env>`) when contract replay fails
 - `--github-summary` — Write Markdown replay report to `$GITHUB_STEP_SUMMARY` (or stdout, or stderr when `--json` is set)
 - `--json` — Output machine-readable JSON replay report
 
 ```bash
+# Sanitize a browser HAR export offline before committing to Git
+diverge replay sanitize --from ./recording.har --output ./traces/checkout.jsonl --filter-host api.example.com --redact-body-field password,cvv
+
 # Replay a JSONL request trace against preview environment pr-42
 diverge replay pr-42 --from ./traces/checkout.jsonl
 
-# Replay a filtered single-service HAR file and write a GitHub Step Summary
-# Note: remove any recorded diverge_env routing cookies, strip or replace captured credentials/sensitive data,
-# and filter out other hosts before using --base-url
-diverge replay pr-42 --from ./recording.har --base-url https://staging.example.com --github-summary
+# Replay a multi-host HAR file filtered to api.example.com with auth stripping and GitHub Step Summary
+diverge replay pr-42 --from ./recording.har --filter-host api.example.com --strip-auth --base-url https://staging.example.com --github-summary
 
 # Replay binary Protobuf/gRPC traffic with a compiled FileDescriptorSet (.binpb)
 diverge replay pr-42 --from ./grpc-trace.jsonl --proto-descriptor ./descriptors.binpb --proto-message acme.v1.ChargeResponse
 ```
 
 :::caution
-- **Side Effects & Unsanitized Request Data**: Replay forwards recorded headers and bodies without sanitizing credentials or sensitive data, and attempts the preview request whenever baseline execution completes without error (including passing the 10 MiB response-size check, regardless of baseline HTTP or gRPC status). Always target safe environments, filter out non-idempotent or state-changing requests, and remove or replace captured credentials and sensitive data before replay.
-- **Recorded `diverge_env` Cookies Across All Trace Formats**: The replay runner strips recorded routing headers (`x-diverge-env`) and `baggage` entries from baseline requests, but it does **not** remove recorded `diverge_env` sticky-routing cookies from `Cookie` headers. Because a `diverge_env` cookie can route requests from any supported trace format (`.jsonl`, `.har`, or `.json`) to a preview even when `--base-url` is omitted, remove any `diverge_env` cookie from all traces and verify that the baseline URL serves the baseline before replaying.
-- **`--base-url` on Multi-Host HAR Files**: Passing `--base-url` redirects every captured URL in the trace to the specified host, including URLs recorded for other domains. Multi-host browser HAR captures can therefore produce unrelated failures and forward captured `Cookie` or `Authorization` headers to the `--base-url` host. Filter HAR files to the intended target service before replay.
+- **Side Effects & Unsanitized Request Data**: Unlike `diverge record` and `diverge replay sanitize`, `diverge replay` defaults `--strip-auth` to `false`, forwarding recorded headers and bodies unless scrubbing flags are set, and executes the preview request whenever baseline execution completes without transport/size error (up to the 10 MiB response cap). Always target safe environments, sanitize traces before committing (`diverge replay sanitize`), or pass `--strip-auth`, `--strip-header`, `--redact-query`, and `--redact-body-field` at replay time.
+- **`--base-url` on Multi-Host HAR Files**: Passing `--base-url` redirects every captured URL in the trace to the specified host. Always filter multi-host browser HAR captures with `--filter-host` before replay so unrelated third-party requests are excluded.
 :::
 
 ### `diverge route <service>`
@@ -195,6 +232,7 @@ Run a unified verification suite against a preview `Environment` or `PreviewGrou
 - `--github-summary` — Write a Markdown verification scorecard table (plus Doctor diagnostics on failure) to `$GITHUB_STEP_SUMMARY` (or stdout if unset); when `GITHUB_ACTIONS=true`, failed checks also emit `::error::` workflow annotations
 - `--json` — Output machine-readable JSON verification report
 - `--base-url` — Override the base URL for HTTP verification
+- `--auto-fix` — Automatically create or update a self-healing `AgentTask` (`autofix-verify-<env>`) when verification fails
 - `-X, --method`, `-d, --data`, `-H, --header`, `--timeout` — Request method, body, custom headers, and per-request timeout (default: `15s`)
 
 ```bash

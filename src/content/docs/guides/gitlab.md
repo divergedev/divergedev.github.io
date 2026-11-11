@@ -7,30 +7,38 @@ Diverge provides first-class GitLab integration for automatic preview environmen
 
 ## 1. Controller Setup
 
-Install the Diverge controller with GitLab notifier enabled:
+Create Secrets for your GitLab API token and webhook shared secret in the release namespace, then install the Diverge Helm chart:
 
 ```bash
+kubectl -n diverge-system create secret generic diverge-gitlab --from-literal=token=<api-scoped-token>
+kubectl -n diverge-system create secret generic diverge-webhook-token --from-literal=token=<webhook-secret>
+
 helm install diverge oci://ghcr.io/divergedev/charts/diverge \
   --namespace diverge-system \
   --create-namespace \
-  --set notifierProvider=gitlab \
-  --set controller.env.DIVERGE_NOTIFIER_TOKEN=<gitlab-token> \
-  --set controller.env.DIVERGE_WEBHOOK_SECRET=<webhook-secret>
+  --set notifier.provider=gitlab \
+  --set notifier.tokenSecretRef.name=diverge-gitlab \
+  --set webhook.secretName=diverge-webhook-token \
+  --set webhook.gitlabAllowedUsers="12345,67890" \
+  --set defaultNamespace=diverge-previews
 ```
+
+Anything the chart does not model directly can be passed via `extraArgs` (controller CLI flags) and `extraEnv` (a list of `EnvVar` entries).
 
 ### Required Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `DIVERGE_NOTIFIER_TOKEN` | GitLab API token with `api` scope (personal or project access token) |
-| `DIVERGE_WEBHOOK_SECRET` | Shared secret for webhook signature validation |
+| `DIVERGE_NOTIFIER_TOKEN` | GitLab API token with `api` scope (set automatically via `notifier.tokenSecretRef`) |
+| `DIVERGE_WEBHOOK_SECRET` | Shared secret for webhook validation (set automatically via `webhook.secretName`) |
+| `DIVERGE_BASE_URL` | Optional API base URL for self-hosted GitLab (set via `notifier.baseUrl`; defaults to `https://gitlab.com`) |
 
 ### Controller Flags
 
 | Flag | Description |
 |------|-------------|
-| `--notifier-provider=gitlab` | Enable GitLab MR comments and commit statuses |
-| `--gitlab-url=https://gitlab.example.com` | Base URL for self-hosted GitLab (omit for gitlab.com) |
+| `--notifier-provider=gitlab` | Enable GitLab MR comments, commit statuses, and `.diverge.yaml` fetching |
+| `--default-namespace=diverge-previews` | Target namespace for webhook-created `Environment` resources |
 
 ---
 
@@ -62,6 +70,10 @@ Add a second webhook for coordinated multi-service deployments:
 Webhook authentication uses constant-time comparison of the `X-Gitlab-Token` header against your configured secret, preventing timing attacks.
 :::
 
+:::tip[Group-Level Webhooks & Opt-In Repositories]
+With `deploy.provider: direct` and `deploy.manifestSourceType: serviceconfig`, Diverge automatically skips Merge Request events from projects that do not have a `.diverge.yaml` (`kind: ServicePreview`) on the source branch, and cleans up any existing preview if a later commit removes `.diverge.yaml`. You can configure a single GitLab group webhook and let individual projects opt in by committing `.diverge.yaml` (using `spec.image.repository` to point at your GitLab Container Registry repository without a tag or digest).
+:::
+
 ### Webhook Events Handled
 
 | Event / Action | Diverge Behavior |
@@ -69,7 +81,7 @@ Webhook authentication uses constant-time comparison of the `X-Gitlab-Token` hea
 | `Merge Request Hook`: `open`, `reopen` | Creates `Environment` / `PreviewGroup` CR |
 | `Merge Request Hook`: `update` (new push) | Updates the CR with new commit SHA |
 | `Merge Request Hook`: `merge`, `close` | Deletes the CR (triggers teardown) |
-| `Note Hook` (on MergeRequest) | Parses `/diverge` slash commands on MRs (`preview`, `fix`, `guide`, `budget`, `status`, `help`, `extend-ttl`, `teardown`, `pause`, `resume`) |
+| `Note Hook` (on MergeRequest) | Parses `/diverge` slash commands on MRs (`preview`, `verify`, `replay`, `fix`, `guide`, `budget`, `status`, `help`, `extend-ttl`, `teardown`, `pause`, `resume`) |
 
 ---
 
@@ -80,6 +92,8 @@ When **Comments** (`Note Hook`) events are enabled on `/gitlab-webhook`, develop
 | Slash Command | Action |
 |---------------|--------|
 | `/diverge preview` | Provisions or refreshes the `Environment` for the Merge Request (`mr-<iid>`) |
+| `/diverge verify [path] [--fix]` | Runs Kubernetes workload `doctor` diagnostics and routed HTTP readiness + baseline parity probes against the MR preview environment (defaults to `/`) and replies with a Markdown scorecard; pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
+| `/diverge replay [path ...] [--fix]` | Replays inline whitespace-separated `GET` probe paths against baseline and the MR preview environment (defaults to `/`), diffing status codes, latency, and JSON/Protobuf response contracts (supporting header-routed and subdomain-routed previews when a baseline URL is configured via `spec.routing.externalUrl` or `DIVERGE_BASE_URL`); pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
 | `/diverge fix <objective>` | Spawns an autonomous `AgentTask` (`fix-mr-<iid>`) with `divergedev.com/preview-enabled: "true"` and your custom objective |
 | `/diverge guide <hint>` | Sends live steering guidance (`divergedev.com/guidance`) delivered to the active agent on its next metering heartbeat |
 | `/diverge budget [+$budget] [tokens]` | Bumps the active `AgentTask`'s USD and/or token budget without changing suspension state |
@@ -91,7 +105,7 @@ When **Comments** (`Note Hook`) events are enabled on `/gitlab-webhook`, develop
 | `/diverge resume [+$budget] [tokens]` | Resumes a paused `AgentTask` (`fix-mr-<iid>`) by setting `spec.suspended: false`, optionally bumping budget, and minting a fresh Macaroon token |
 
 :::caution[Collaborator Authorization]
-Slash commands are restricted to authorized project members (`OWNER`, `MEMBER`, or `COLLABORATOR` roles). Untrusted external notes are rejected before any Kubernetes resources are mutated.
+GitLab MR slash commands require configuring authorized numeric GitLab user IDs on the controller via `webhook.gitlabAllowedUsers` in Helm, `--gitlab-allowed-users`, or `DIVERGE_GITLAB_ALLOWED_USERS` (comma-separated). When `AllowedUsers` is empty, MR slash commands fail closed and return HTTP 200 without mutating Kubernetes resources (while authenticated `Merge Request Hook` lifecycle events continue to create, update, or delete preview environments). If `author_association` is reported in the payload, Diverge also enforces `OWNER`, `MEMBER`, or `COLLABORATOR`.
 :::
 
 ---
@@ -100,17 +114,22 @@ Slash commands are restricted to authorized project members (`OWNER`, `MEMBER`, 
 
 ### Turnkey GitLab CI/CD Catalog Component (Recommended)
 
-Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v0.20.0`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
+Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v0.23.0`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
 
-When `diverge_services` is left empty and `.diverge.yaml` is present in your repository, the component **automatically fetches the target branch, runs `diverge diff --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --output json`**, deploys a delta `PreviewGroup` (`mr-$CI_MERGE_REQUEST_IID`) for only the modified services, and exports a `preview.env` `dotenv` report artifact to downstream E2E test jobs:
+When `diverge_services` is left empty and `.diverge.yaml` is present in your repository, the component **automatically fetches the target branch, runs `diverge diff --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --output json`**, deploys a delta `PreviewGroup` (`mr-$CI_MERGE_REQUEST_IID`) for only the modified services, optionally runs `diverge verify` and/or `diverge replay` (including stateful `extract` / `{{var}}` chained traces and `diverge_auto_fix`), and exports a `preview.env` `dotenv` report artifact to downstream E2E test jobs:
+
+:::caution[Sanitize Replay Traces Before Committing to Git]
+Scrub recorded `.jsonl` / `.har` traces with `diverge record` (plus `--redact-body-field`) or `diverge replay sanitize` **before committing them to the repository**. Component inputs (`diverge_replay_strip_auth: "true"`, `diverge_replay_redact_query`, `diverge_replay_redact_body_fields`) provide an additional runtime safeguard during replay rather than a substitute for pre-commit sanitization.
+:::
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v0.20.0
+  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v0.23.0
     inputs:
       diverge_registry: "$CI_REGISTRY_IMAGE"
       diverge_base_url: "https://staging.example.com"
       diverge_ttl: "4h"
+      diverge_verify: "true"
 
 e2e_preview:
   stage: test
@@ -139,6 +158,19 @@ If you are self-hosting or referencing the template directly from the repository
 | `diverge_registry` | `""` | Container registry prefix for preview images (defaults to `$CI_REGISTRY_IMAGE`) |
 | `diverge_namespace` | `default` | Default Kubernetes namespace for preview workloads |
 | `diverge_base_url` | `""` | Optional staging/gateway URL to construct a shareable `?_diverge_env=` preview URL |
+| `diverge_verify` | `false` | Run `diverge verify` after preview deployment (`"true"` / `"false"`) |
+| `diverge_verify_path` | `/` | HTTP path to probe during `diverge verify` |
+| `diverge_verify_max_latency` | `5s` | Maximum allowed HTTP latency during `diverge verify` (e.g. `500ms`, `5s`) |
+| `diverge_replay_from` | `""` | Optional HAR (`.har`) or JSONL (`.jsonl`) trace file path to run `diverge replay` after deployment |
+| `diverge_replay_strip_auth` | `true` | Strip recorded `Authorization`, `Cookie`, and `X-Api-Key` headers and auth query tokens during replay |
+| `diverge_replay_redact_query` | `""` | Optional comma-separated query parameter names to redact during `diverge replay` |
+| `diverge_replay_redact_body_fields` | `""` | Optional comma-separated JSON request body field paths to redact during `diverge replay` |
+| `diverge_replay_filter_hosts` | `""` | Optional comma-separated host patterns to include during `diverge replay` |
+| `diverge_replay_ignore_fields` | `""` | Optional comma-separated field paths or Protobuf field numbers to ignore during `diverge replay` |
+| `diverge_replay_max_latency` | `""` | Optional maximum allowed preview latency per replayed request (e.g. `500ms`) |
+| `diverge_replay_compare_values` | `false` | Compare exact scalar values during `diverge replay` |
+| `diverge_replay_fail_on_extra_fields` | `false` | Fail `diverge replay` when preview adds extra fields |
+| `diverge_auto_fix` | `false` | Automatically trigger a self-healing `AgentTask` when `verify` or `replay` fails |
 | `diverge_kubectl_version` | `v1.31.0` | Version of `kubectl` to install if not present in the runner image |
 
 #### `preview.env` Dotenv Report Variables
@@ -178,11 +210,11 @@ variables:
 # All jobs needing the CLI use this image (git, curl, jq included)
 default:
   image:
-    name: ghcr.io/divergedev/diverge-cli:v0.20.0
+    name: ghcr.io/divergedev/diverge-cli:v0.23.0
     entrypoint: [""]
 ```
 
-To pin a specific version, replace `v0.20.0` with the desired tag. Use `latest` to always get the newest release.
+To pin a specific version, replace `v0.23.0` with the desired tag. Use `latest` to always get the newest release.
 
 #### Change Detection
 
@@ -345,13 +377,15 @@ For self-hosted GitLab instances:
 
 ### Controller Configuration
 
-Pass the `--gitlab-url` flag to the controller:
+Set `notifier.baseUrl` in your Helm values (which configures `DIVERGE_BASE_URL` across MR notes, commit statuses, `.diverge.yaml` fetching, and pipeline test runners):
 
 ```yaml
 # Helm values.yaml
-controller:
-  extraArgs:
-    - "--gitlab-url=https://gitlab.internal.example.com"
+notifier:
+  provider: gitlab
+  baseUrl: https://gitlab.internal.example.com
+  tokenSecretRef:
+    name: diverge-gitlab
 ```
 
 ### Internal CA Certificates
