@@ -170,7 +170,9 @@ Replay recorded HTTP, ConnectRPC, and Protobuf/gRPC traffic traces against both 
 - `--json` — Output machine-readable JSON replay report
 
 ```bash
-# Sanitize a browser HAR export offline before committing to Git
+# Sanitize a browser HAR export offline — always inspect ./traces/checkout.jsonl afterward
+# and pass additional --strip-header, --redact-query, and --redact-body-field flags (e.g., email,
+# custom auth headers, or unlisted query parameters) for any remaining sensitive data before committing
 diverge replay sanitize --from ./recording.har --output ./traces/checkout.jsonl --filter-host api.example.com --redact-body-field password,cvv
 
 # Replay a JSONL request trace against preview environment pr-42

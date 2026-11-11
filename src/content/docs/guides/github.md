@@ -7,30 +7,41 @@ Diverge provides first-class GitHub integration for automatic preview environmen
 
 ## 1. Controller Setup
 
-Create Secrets for your GitHub API token and webhook shared secret in the release namespace, then install the Diverge Helm chart:
+Create the controller and preview namespaces, store your GitHub API token and webhook shared secret as Kubernetes Secrets, and install the Diverge `0.23.0` Helm chart:
 
 ```bash
-kubectl -n diverge-system create secret generic diverge-github --from-literal=token=<github-token>
-kubectl -n diverge-system create secret generic diverge-webhook-token --from-literal=token=<webhook-secret>
+kubectl create namespace diverge-system
+kubectl create namespace diverge-previews
+
+kubectl -n diverge-system create secret generic diverge-github \
+  --from-literal=DIVERGE_NOTIFIER_TOKEN=<github-token>
+kubectl -n diverge-system create secret generic diverge-webhook-token \
+  --from-literal=token=<webhook-secret>
 
 helm install diverge oci://ghcr.io/divergedev/charts/diverge \
+  --version 0.23.0 \
   --namespace diverge-system \
-  --create-namespace \
-  --set notifier.provider=github \
-  --set notifier.tokenSecretRef.name=diverge-github \
+  --set notifierProvider=github \
   --set webhook.secretName=diverge-webhook-token \
   --set defaultNamespace=diverge-previews
+
+kubectl -n diverge-system set env deployment/diverge-controller-manager \
+  --from=secret/diverge-github
 ```
 
-Anything the chart does not model directly can be passed via `extraArgs` (controller CLI flags) and `extraEnv` (a list of `EnvVar` entries).
+:::note[Upcoming Chart Values (`main` / `v0.24.0+`)]
+When installing `charts/diverge` from `main` (or starting in `v0.24.0`), the chart natively wires the notifier Secret, GitHub Enterprise API URL, and custom controller flags/env vars without a separate `kubectl set env` step:
+- `notifier.provider=github`, `notifier.tokenSecretRef.name=diverge-github`, and `notifier.tokenSecretRef.key=DIVERGE_NOTIFIER_TOKEN` (default key: `token`)
+- `notifier.baseUrl=https://ghe.example.com/api/v3` (sets `DIVERGE_NOTIFIER_BASE_URL`)
+- `extraArgs` (controller CLI flags) and `extraEnv` (a list of `EnvVar` entries)
+:::
 
 ### Required Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `DIVERGE_NOTIFIER_TOKEN` | GitHub personal access token or fine-grained token with `issues:write` and `statuses:write` (set via `notifier.tokenSecretRef`) |
-| `DIVERGE_WEBHOOK_SECRET` | Shared secret for HMAC-SHA256 webhook signature validation (set via `webhook.secretName`) |
-| `DIVERGE_BASE_URL` | Optional API base URL for GitHub Enterprise Server (set via `notifier.baseUrl`; defaults to `https://api.github.com`) |
+| `DIVERGE_NOTIFIER_TOKEN` | GitHub personal access token or fine-grained token with `issues:write` and `statuses:write` |
+| `DIVERGE_WEBHOOK_SECRET` | Shared secret for HMAC-SHA256 webhook signature validation (mounted from `webhook.secretName`, key `token`) |
 
 ---
 
@@ -60,8 +71,8 @@ For PreviewGroups (multi-service), add a second webhook:
 GitHub webhook payloads are validated using HMAC-SHA256 signature verification (`X-Hub-Signature-256`) with constant-time comparison.
 :::
 
-:::tip[Organization-Level Webhooks & Opt-In Repositories]
-With `deploy.provider: direct` and `deploy.manifestSourceType: serviceconfig`, Diverge automatically skips Pull Request events from repositories that do not have a `.diverge.yaml` (`kind: ServicePreview`) on the PR head branch, and removes any existing preview if a subsequent commit deletes `.diverge.yaml`. You can register one organization-level webhook and let individual repositories opt in by adding `.diverge.yaml` (setting `spec.image.repository` to e.g. `ghcr.io/org/service` without a tag or digest).
+:::tip[Organization-Level Webhooks & Opt-In Repositories (`main` / `v0.24.0+`)]
+Starting on `main` (upcoming `v0.24.0`), when `deploy.provider: direct` and `deploy.manifestSourceType: serviceconfig` are enabled, Diverge automatically skips Pull Request events from repositories that do not have a `.diverge.yaml` (`kind: ServicePreview`) on the PR head branch, removes any existing preview if a subsequent commit deletes `.diverge.yaml`, and honors `spec.image.repository` (e.g. `ghcr.io/org/service`, without a tag or digest). In `v0.23.0` and earlier, only register webhooks on repositories that participate in Diverge previews — `v0.23.0` constructs the preview image from `<owner>/<repo>:<sha>` and creates an unconfigured `Environment` when `.diverge.yaml` is absent.
 :::
 
 ### Webhook Events Handled
@@ -83,7 +94,7 @@ When `Issue comments` (`issue_comment`) events are delivered to `/github-webhook
 |---------------|--------|
 | `/diverge preview` | Provisions or refreshes the `Environment` for the Pull Request (`pr-<number>`) |
 | `/diverge verify [path] [--fix]` | Runs Kubernetes workload `doctor` diagnostics and routed HTTP readiness + baseline parity probes against the PR preview environment (defaults to `/`) and posts a Markdown scorecard; pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
-| `/diverge replay [path ...] [--fix]` | Replays inline whitespace-separated `GET` probe paths against baseline and the PR preview environment (defaults to `/`), diffing status codes, latency, and JSON/Protobuf response contracts (supporting header-routed and subdomain-routed previews when a baseline URL is configured via `spec.routing.externalUrl` or `DIVERGE_BASE_URL`); pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
+| `/diverge replay [path ...] [--fix]` | Replays inline whitespace-separated `GET` probe paths against baseline and the PR preview environment (defaults to `/`), diffing status codes, latency, and JSON/Protobuf response contracts (supporting header-routed and subdomain-routed previews when a baseline URL is configured via `spec.routing.externalUrl`); pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
 | `/diverge fix <objective>` | Spawns an autonomous `AgentTask` (`fix-pr-<number>`) with `divergedev.com/preview-enabled: "true"` and your custom objective (defaults to fixing PR issues) |
 | `/diverge guide <hint>` | Sends live steering guidance (`divergedev.com/guidance`) delivered to the active agent on its next metering heartbeat |
 | `/diverge budget [+$budget] [tokens]` | Bumps the active `AgentTask`'s USD and/or token budget without changing suspension state |

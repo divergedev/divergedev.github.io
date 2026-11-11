@@ -7,31 +7,43 @@ Diverge provides first-class GitLab integration for automatic preview environmen
 
 ## 1. Controller Setup
 
-Create Secrets for your GitLab API token and webhook shared secret in the release namespace, then install the Diverge Helm chart:
+Create the controller and preview namespaces, store your GitLab API token and webhook shared secret as Kubernetes Secrets, and install the Diverge `0.23.0` Helm chart (`--create-namespace` on Helm only creates `diverge-system`, so create `diverge-previews` explicitly too):
 
 ```bash
-kubectl -n diverge-system create secret generic diverge-gitlab --from-literal=token=<api-scoped-token>
-kubectl -n diverge-system create secret generic diverge-webhook-token --from-literal=token=<webhook-secret>
+kubectl create namespace diverge-system
+kubectl create namespace diverge-previews
+
+kubectl -n diverge-system create secret generic diverge-gitlab \
+  --from-literal=DIVERGE_NOTIFIER_TOKEN=<api-scoped-token>
+kubectl -n diverge-system create secret generic diverge-webhook-token \
+  --from-literal=token=<webhook-secret>
 
 helm install diverge oci://ghcr.io/divergedev/charts/diverge \
+  --version 0.23.0 \
   --namespace diverge-system \
-  --create-namespace \
-  --set notifier.provider=gitlab \
-  --set notifier.tokenSecretRef.name=diverge-gitlab \
+  --set notifierProvider=gitlab \
   --set webhook.secretName=diverge-webhook-token \
-  --set webhook.gitlabAllowedUsers="12345,67890" \
+  --set-string 'webhook.gitlabAllowedUsers=12345\,67890' \
   --set defaultNamespace=diverge-previews
+
+kubectl -n diverge-system set env deployment/diverge-controller-manager \
+  --from=secret/diverge-gitlab
 ```
 
-Anything the chart does not model directly can be passed via `extraArgs` (controller CLI flags) and `extraEnv` (a list of `EnvVar` entries).
+:::note[Upcoming Chart Values (`main` / `v0.24.0+`)]
+When installing `charts/diverge` from `main` (or starting in `v0.24.0`), the chart natively wires the notifier Secret, self-hosted GitLab URL, and custom controller flags/env vars without a separate `kubectl set env` step:
+- `notifier.provider=gitlab`, `notifier.tokenSecretRef.name=diverge-gitlab`, and `notifier.tokenSecretRef.key=DIVERGE_NOTIFIER_TOKEN` (default key: `token`)
+- `notifier.baseUrl=https://gitlab.internal.example.com` (sets `DIVERGE_NOTIFIER_BASE_URL`)
+- `extraArgs` (controller CLI flags) and `extraEnv` (a list of `EnvVar` entries)
+:::
 
 ### Required Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `DIVERGE_NOTIFIER_TOKEN` | GitLab API token with `api` scope (set automatically via `notifier.tokenSecretRef`) |
-| `DIVERGE_WEBHOOK_SECRET` | Shared secret for webhook validation (set automatically via `webhook.secretName`) |
-| `DIVERGE_BASE_URL` | Optional API base URL for self-hosted GitLab (set via `notifier.baseUrl`; defaults to `https://gitlab.com`) |
+| `DIVERGE_NOTIFIER_TOKEN` | GitLab API token with `api` scope |
+| `DIVERGE_WEBHOOK_SECRET` | Shared secret for webhook validation (mounted from `webhook.secretName`, key `token`) |
+| `DIVERGE_BASE_URL` | In `v0.23.0`, optional API base URL for GitLab MR notes (`https://gitlab.com` default) that also acts as the fallback replay baseline when `spec.routing.externalUrl` is unset — set `spec.routing.externalUrl` on self-hosted GitLab so replay probes target your application. Starting in `v0.24.0+`, use `DIVERGE_NOTIFIER_BASE_URL` (`notifier.baseUrl`) for the GitLab API URL |
 
 ### Controller Flags
 
@@ -70,8 +82,8 @@ Add a second webhook for coordinated multi-service deployments:
 Webhook authentication uses constant-time comparison of the `X-Gitlab-Token` header against your configured secret, preventing timing attacks.
 :::
 
-:::tip[Group-Level Webhooks & Opt-In Repositories]
-With `deploy.provider: direct` and `deploy.manifestSourceType: serviceconfig`, Diverge automatically skips Merge Request events from projects that do not have a `.diverge.yaml` (`kind: ServicePreview`) on the source branch, and cleans up any existing preview if a later commit removes `.diverge.yaml`. You can configure a single GitLab group webhook and let individual projects opt in by committing `.diverge.yaml` (using `spec.image.repository` to point at your GitLab Container Registry repository without a tag or digest).
+:::tip[Group-Level Webhooks & Opt-In Repositories (`main` / `v0.24.0+`)]
+Starting on `main` (upcoming `v0.24.0`), when `deploy.provider: direct` and `deploy.manifestSourceType: serviceconfig` are enabled, Diverge automatically skips Merge Request events from projects that do not have a `.diverge.yaml` (`kind: ServicePreview`) on the source branch, cleans up any existing preview if a later commit removes `.diverge.yaml`, and honors `spec.image.repository` (without a tag or digest). In `v0.23.0` and earlier, configure webhooks per participating project — `v0.23.0` constructs the image from `<group>/<project>:<sha>` and creates an unconfigured `Environment` when `.diverge.yaml` is absent.
 :::
 
 ### Webhook Events Handled
@@ -93,7 +105,7 @@ When **Comments** (`Note Hook`) events are enabled on `/gitlab-webhook`, develop
 |---------------|--------|
 | `/diverge preview` | Provisions or refreshes the `Environment` for the Merge Request (`mr-<iid>`) |
 | `/diverge verify [path] [--fix]` | Runs Kubernetes workload `doctor` diagnostics and routed HTTP readiness + baseline parity probes against the MR preview environment (defaults to `/`) and replies with a Markdown scorecard; pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
-| `/diverge replay [path ...] [--fix]` | Replays inline whitespace-separated `GET` probe paths against baseline and the MR preview environment (defaults to `/`), diffing status codes, latency, and JSON/Protobuf response contracts (supporting header-routed and subdomain-routed previews when a baseline URL is configured via `spec.routing.externalUrl` or `DIVERGE_BASE_URL`); pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
+| `/diverge replay [path ...] [--fix]` | Replays inline whitespace-separated `GET` probe paths against baseline and the MR preview environment (defaults to `/`), diffing status codes, latency, and JSON/Protobuf response contracts (supporting header-routed and subdomain-routed previews when a baseline URL is configured via `spec.routing.externalUrl`); pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
 | `/diverge fix <objective>` | Spawns an autonomous `AgentTask` (`fix-mr-<iid>`) with `divergedev.com/preview-enabled: "true"` and your custom objective |
 | `/diverge guide <hint>` | Sends live steering guidance (`divergedev.com/guidance`) delivered to the active agent on its next metering heartbeat |
 | `/diverge budget [+$budget] [tokens]` | Bumps the active `AgentTask`'s USD and/or token budget without changing suspension state |
@@ -377,15 +389,24 @@ For self-hosted GitLab instances:
 
 ### Controller Configuration
 
-Set `notifier.baseUrl` in your Helm values (which configures `DIVERGE_BASE_URL` across MR notes, commit statuses, `.diverge.yaml` fetching, and pipeline test runners):
+In `v0.23.0`, inject `DIVERGE_BASE_URL` (for MR notes and `AgentTask` notifications) and `GITLAB_API_URL` onto `diverge-controller-manager` (and set `spec.routing.externalUrl` on your preview environments so `/diverge replay` probes your application rather than the GitLab host):
+
+```bash
+kubectl -n diverge-system set env deployment/diverge-controller-manager \
+  DIVERGE_BASE_URL=https://gitlab.internal.example.com \
+  GITLAB_API_URL=https://gitlab.internal.example.com
+```
+
+When deploying from `main` (or starting in `v0.24.0`), set `notifier.baseUrl` in your Helm values, which injects `DIVERGE_NOTIFIER_BASE_URL` across MR notes, commit statuses, `.diverge.yaml` fetching, and pipeline test runners without colliding with `DIVERGE_BASE_URL`:
 
 ```yaml
-# Helm values.yaml
+# Helm values.yaml (main / v0.24.0+)
 notifier:
   provider: gitlab
   baseUrl: https://gitlab.internal.example.com
   tokenSecretRef:
     name: diverge-gitlab
+    key: DIVERGE_NOTIFIER_TOKEN
 ```
 
 ### Internal CA Certificates
