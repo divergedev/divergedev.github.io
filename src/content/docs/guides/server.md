@@ -47,6 +47,7 @@ The ConnectRPC API supports several advanced features for robustness and perform
 - **Optimistic Concurrency**: Mutating endpoints support resource version checking to prevent lost updates.
 - **CORS**: Configurable Cross-Origin Resource Sharing for browser-based clients.
 - **Remote MCP Endpoint (`/mcp`)**: Exposes Diverge environment and `AgentTask` tools directly over HTTP JSON-RPC.
+- **Control-Plane Verification & Traffic Replay (`POST /api/v1/environments/verify` & `POST /api/v1/environments/replay`)**: Executes Kubernetes `doctor` diagnostics, routed HTTP/SLO verification checks, and deterministic `.jsonl` / `.har` / inline request replay (including stateful `extract` / `{{var}}` chaining with `sequential` execution, `[REDACTED]` header-extracted variable masking, SSRF-hardened egress, and optional `autoFix` `AgentTask` creation) protected by OIDC/`TokenReview` authentication and namespace-scoped RBAC `SubjectAccessReview` (`get` on `environments`, plus `create`/`update` on `agenttasks` when `autoFix: true`).
 - **Live AgentTask Metering (`POST /api/v1/agenttask/meter`)**: Tracks LLM token consumption and USD cost in real time and automatically pauses tasks that exceed their budget.
 
 ## Live AgentTask Metering (`POST /api/v1/agenttask/meter`)

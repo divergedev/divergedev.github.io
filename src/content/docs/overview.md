@@ -16,7 +16,7 @@ Diverge is an open-source environment-as-a-service engine for Kubernetes. It all
 
 - **Environment CRD:** Declarative Kubernetes resource defining a preview environment.
 - **Autonomous Agent Sandboxes (`AgentTask`):** Isolated Kubernetes sandboxes (`gvisor` / `kata` / `agent-sandbox` / `pod`) with attenuated Macaroon capability tokens, automatic linked preview environments (`divergedev.com/preview-enabled: "true"`), and idempotent live LLM token/cost metering (`POST /api/v1/agenttask/meter`).
-- **Interactive PR/MR Slash Commands:** Trigger previews, extend TTLs, steer active agents, or adjust LLM budgets directly from GitHub/GitLab comments (`/diverge preview`, `/diverge fix`, `/diverge guide`, `/diverge budget`, `/diverge status`, `/diverge extend-ttl`, `/diverge teardown`, `/diverge pause`, `/diverge resume`).
+- **Interactive PR/MR Slash Commands:** Trigger previews, run readiness/replay checks, extend TTLs, steer active agents, or adjust LLM budgets directly from GitHub/GitLab comments (`/diverge preview`, `/diverge verify`, `/diverge replay`, `/diverge fix`, `/diverge guide`, `/diverge budget`, `/diverge status`, `/diverge extend-ttl`, `/diverge teardown`, `/diverge pause`, `/diverge resume`).
 - **Delta Deployments:** Deploy only what has changed instead of an entire microservice stack.
 - **Routing Modes:** Uses header-based or subdomain routing to share baseline environments.
 - **Security Hardened:** Macaroon capability tokens, finalizer-based teardown, RFC 7230 header validation, path traversal prevention, and constant-time secret comparison.
@@ -56,6 +56,9 @@ Diverge is rigorously tested across packages to ensure robust preview environmen
 
 ## Recently Shipped
 
+- **Stateful Trace Chaining & Listener `h2c` Recording (`v0.23`)** — Per-environment `extract` rules (`$.nested.items[0].id`, `$header.<Name>`, `$status`) and `{{var}}` interpolation in `diverge replay` (`--sequential`) with `[REDACTED]` header-credential masking in reports, automatic CRUD ID chaining (`diverge record --auto-chain`), and listener HTTP/2 cleartext (`h2c`) + upstream trailer forwarding
+- **Traffic Recording Proxy, Deep Trace Sanitization & Self-Healing (`v0.22`)** — `diverge record` reverse-proxy recorder, `diverge replay sanitize`, fail-closed query/JSON body field redaction, `--auto-fix` / `--fix` self-healing `AgentTask` dispatch, and the Web Dashboard **Verify & Replay** tab (`POST /api/v1/environments/verify` & `/api/v1/environments/replay`)
+- **HAR/Multi-Cookie Replay Hardening & Multi-Service Verification (`v0.21`)** — Browser/Playwright `.har` trace import, host wildcard filtering (`--filter-host`), automatic `diverge_env` sticky-cookie stripping on multi-cookie headers, and per-service `PreviewGroup` verification probes
 - **Deterministic Traffic Replay & Contract Diffing (`v0.20`)** — `diverge replay` CLI and `diverge_replay` MCP tool for replaying `.jsonl`, `.har`, and `.json` traces against baseline and preview environments with HTTP/gRPC status parity, p50/p95 latency reporting, per-request latency thresholds, JSON schema diffing, and binary Protobuf wire/descriptor contract diffing
 - **Production AgentTask Sandboxes & `diverge task` CLI (`v0.19`)** — `.diverge/agent.yaml` repository config, `diverge task init|create|status|list|logs|guide|pause|resume|delete`, `SandboxSuspender` pod suspension + linked preview hibernation, and idempotent `requestId` LLM metering returning live `guidance` and `previewUrl`
 - **Unified CI Verification & Full-Stack Data Isolation (`v0.18`)** — `diverge verify` SLO & baseline parity gate with `$GITHUB_STEP_SUMMARY`, S3/GCS/MinIO object storage prefix isolation, Redis/Valkey keyspace isolation, and topological PostgreSQL FK/view cloning

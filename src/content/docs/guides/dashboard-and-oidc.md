@@ -90,6 +90,8 @@ server:
 
 - **Environment Detail & Live Feature Flag Overrides (`FlagsTab`)**:
   - Add, toggle (`true` / `false`), or remove feature flag overrides (`spec.features.overrides`) directly from the **Flags** tab using partial `UpdateMask` (`spec.features.overrides`) updates, alongside one-click TTL extension and hook job retries.
+- **Interactive Verification & Contract Replay (`VerifyReplayTab`)**:
+  - Run `doctor` diagnostics + HTTP readiness/latency SLO checks (`POST /api/v1/environments/verify`) or paste/upload `.jsonl` / `.har` traces for baseline-vs-preview contract diffing (`POST /api/v1/environments/replay`) directly from the **Verify & Replay** tab, with extracted variable badges (`[REDACTED]` for header-derived values), field-level diff tables, and one-click **Auto-Fix (`AgentTask`)** escalation.
 - **Multi-Service `PreviewGroup` Detail**:
   - Inspect `Overview` (source branch/PR, copyable routing headers, TTL countdown, and child service status table with direct links to each child `Environment`), interactive `Topology` graph, Kubernetes `Conditions`, and live `YAML`.
 - **Autonomous `AgentTask` Steering & Linked Previews**:
