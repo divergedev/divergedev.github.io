@@ -7,33 +7,31 @@ Diverge provides first-class GitLab integration for automatic preview environmen
 
 ## 1. Controller Setup
 
-Create the controller and preview namespaces, store your GitLab API token and webhook shared secret as Kubernetes Secrets, and install the Diverge `0.23.0` Helm chart (`--create-namespace` on Helm only creates `diverge-system`, so create `diverge-previews` explicitly too):
+Create the controller and preview namespaces, store your GitLab API token and webhook shared secret as Kubernetes Secrets, and install the Diverge `0.24.0` Helm chart (`--create-namespace` on Helm only creates `diverge-system`, so create `diverge-previews` explicitly too):
 
 ```bash
 kubectl create namespace diverge-system
 kubectl create namespace diverge-previews
 
 kubectl -n diverge-system create secret generic diverge-gitlab \
-  --from-literal=DIVERGE_NOTIFIER_TOKEN=<api-scoped-token>
+  --from-literal=token=<api-scoped-token>
 kubectl -n diverge-system create secret generic diverge-webhook-token \
   --from-literal=token=<webhook-secret>
 
 helm install diverge oci://ghcr.io/divergedev/charts/diverge \
-  --version 0.23.0 \
+  --version 0.24.0 \
   --namespace diverge-system \
-  --set notifierProvider=gitlab \
+  --set notifier.provider=gitlab \
+  --set notifier.tokenSecretRef.name=diverge-gitlab \
   --set webhook.secretName=diverge-webhook-token \
   --set-string 'webhook.gitlabAllowedUsers=12345\,67890' \
   --set defaultNamespace=diverge-previews
-
-kubectl -n diverge-system set env deployment/diverge-controller-manager \
-  --from=secret/diverge-gitlab
 ```
 
-:::note[Upcoming Chart Values (`main` / `v0.24.0+`)]
-When installing `charts/diverge` from `main` (or starting in `v0.24.0`), the chart natively wires the notifier Secret, self-hosted GitLab URL, and custom controller flags/env vars without a separate `kubectl set env` step:
-- `notifier.provider=gitlab`, `notifier.tokenSecretRef.name=diverge-gitlab`, and `notifier.tokenSecretRef.key=DIVERGE_NOTIFIER_TOKEN` (default key: `token`)
-- `notifier.baseUrl=https://gitlab.internal.example.com` (sets `DIVERGE_NOTIFIER_BASE_URL`)
+:::tip[Self-Hosted GitLab & Controller Flags (`v0.24.0+`)]
+The `0.24.0` Helm chart natively wires the notifier Secret, self-hosted GitLab URL, and custom controller flags/env vars without manual `kubectl set env` patching:
+- `notifier.provider=gitlab`, `notifier.tokenSecretRef.name=diverge-gitlab`, and `notifier.tokenSecretRef.key=token`
+- `notifier.baseUrl=https://gitlab.internal.example.com` (sets `DIVERGE_NOTIFIER_BASE_URL` without colliding with the application replay baseline)
 - `extraArgs` (controller CLI flags) and `extraEnv` (a list of `EnvVar` entries)
 :::
 
@@ -43,7 +41,8 @@ When installing `charts/diverge` from `main` (or starting in `v0.24.0`), the cha
 |----------|-------------|
 | `DIVERGE_NOTIFIER_TOKEN` | GitLab API token with `api` scope |
 | `DIVERGE_WEBHOOK_SECRET` | Shared secret for webhook validation (mounted from `webhook.secretName`, key `token`) |
-| `DIVERGE_BASE_URL` | In `v0.23.0`, optional API base URL for GitLab MR notes (`https://gitlab.com` default) that also acts as the fallback replay baseline when `spec.routing.externalUrl` is unset — set `spec.routing.externalUrl` on self-hosted GitLab so replay probes target your application. Starting in `v0.24.0+`, use `DIVERGE_NOTIFIER_BASE_URL` (`notifier.baseUrl`) for the GitLab API URL |
+| `DIVERGE_NOTIFIER_BASE_URL` | Starting in `v0.24.0+`, API base URL for GitLab MR notes (`notifier.baseUrl` in Helm, default: `https://gitlab.com`). Does not alter the application replay baseline. |
+| `DIVERGE_BASE_URL` | Replay baseline fallback URL when `spec.routing.externalUrl` is unset on preview environments. In `v0.23.0`, this also served as the GitLab API URL. |
 
 ### Controller Flags
 
@@ -82,8 +81,8 @@ Add a second webhook for coordinated multi-service deployments:
 Webhook authentication uses constant-time comparison of the `X-Gitlab-Token` header against your configured secret, preventing timing attacks.
 :::
 
-:::tip[Group-Level Webhooks & Opt-In Repositories (`main` / `v0.24.0+`)]
-Starting on `main` (upcoming `v0.24.0`), when `deploy.provider: direct` and `deploy.manifestSourceType: serviceconfig` are enabled, Diverge automatically skips Merge Request events from projects that do not have a `.diverge.yaml` (`kind: ServicePreview`) on the source branch, cleans up any existing preview if a later commit removes `.diverge.yaml`, and honors `spec.image.repository` (without a tag or digest). In `v0.23.0` and earlier, configure webhooks per participating project — `v0.23.0` constructs the image from `<group>/<project>:<sha>` and creates an unconfigured `Environment` when `.diverge.yaml` is absent.
+:::tip[Group-Level Webhooks & Opt-In Repositories (`v0.24.0+`)]
+Starting in `v0.24.0+`, when `deploy.provider: direct` and `deploy.manifestSourceType: serviceconfig` are enabled, Diverge automatically skips Merge Request events from projects that do not have a `.diverge.yaml` (`kind: ServicePreview`) on the source branch, cleans up any existing preview if a later commit removes `.diverge.yaml`, and honors `spec.image.repository` (without a tag or digest). In `v0.23.0` and earlier, configure webhooks per participating project — `v0.23.0` constructs the image from `<group>/<project>:<sha>` and creates an unconfigured `Environment` when `.diverge.yaml` is absent.
 :::
 
 ### Webhook Events Handled
@@ -126,7 +125,7 @@ GitLab MR slash commands require configuring authorized numeric GitLab user IDs 
 
 ### Turnkey GitLab CI/CD Catalog Component (Recommended)
 
-Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v0.23.0`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
+Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v0.24.0`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
 
 When `diverge_services` is left empty and `.diverge.yaml` is present in your repository, the component **automatically fetches the target branch, runs `diverge diff --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --output json`**, deploys a delta `PreviewGroup` (`mr-$CI_MERGE_REQUEST_IID`) for only the modified services, optionally runs `diverge verify` and/or `diverge replay` (including stateful `extract` / `{{var}}` chained traces and `diverge_auto_fix`), and exports a `preview.env` `dotenv` report artifact to downstream E2E test jobs:
 
@@ -136,7 +135,7 @@ Scrub recorded `.jsonl` / `.har` traces with `diverge record` (plus `--redact-bo
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v0.23.0
+  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v0.24.0
     inputs:
       diverge_registry: "$CI_REGISTRY_IMAGE"
       diverge_base_url: "https://staging.example.com"
@@ -222,11 +221,11 @@ variables:
 # All jobs needing the CLI use this image (git, curl, jq included)
 default:
   image:
-    name: ghcr.io/divergedev/diverge-cli:v0.23.0
+    name: ghcr.io/divergedev/diverge-cli:v0.24.0
     entrypoint: [""]
 ```
 
-To pin a specific version, replace `v0.23.0` with the desired tag. Use `latest` to always get the newest release.
+To pin a specific version, replace `v0.24.0` with the desired tag. Use `latest` to always get the newest release.
 
 #### Change Detection
 
@@ -389,24 +388,24 @@ For self-hosted GitLab instances:
 
 ### Controller Configuration
 
-In `v0.23.0`, inject `DIVERGE_BASE_URL` (for MR notes and `AgentTask` notifications) and `GITLAB_API_URL` onto `diverge-controller-manager` (and set `spec.routing.externalUrl` on your preview environments so `/diverge replay` probes your application rather than the GitLab host):
-
-```bash
-kubectl -n diverge-system set env deployment/diverge-controller-manager \
-  DIVERGE_BASE_URL=https://gitlab.internal.example.com \
-  GITLAB_API_URL=https://gitlab.internal.example.com
-```
-
-When deploying from `main` (or starting in `v0.24.0`), set `notifier.baseUrl` in your Helm values, which injects `DIVERGE_NOTIFIER_BASE_URL` across MR notes, commit statuses, `.diverge.yaml` fetching, and pipeline test runners without colliding with `DIVERGE_BASE_URL`:
+In `v0.24.0+`, configure `notifier.baseUrl` directly in your Helm values, which injects `DIVERGE_NOTIFIER_BASE_URL` across MR notes, commit statuses, `.diverge.yaml` fetching, and pipeline test runners without colliding with the application replay baseline (`DIVERGE_BASE_URL`):
 
 ```yaml
-# Helm values.yaml (main / v0.24.0+)
+# Helm values.yaml (v0.24.0+)
 notifier:
   provider: gitlab
   baseUrl: https://gitlab.internal.example.com
   tokenSecretRef:
     name: diverge-gitlab
-    key: DIVERGE_NOTIFIER_TOKEN
+    key: token
+```
+
+For `v0.23.0` and earlier, inject `DIVERGE_BASE_URL` and `GITLAB_API_URL` onto `diverge-controller-manager` (and set `spec.routing.externalUrl` on your preview environments so `/diverge replay` probes your application rather than the GitLab host):
+
+```bash
+kubectl -n diverge-system set env deployment/diverge-controller-manager \
+  DIVERGE_BASE_URL=https://gitlab.internal.example.com \
+  GITLAB_API_URL=https://gitlab.internal.example.com
 ```
 
 ### Internal CA Certificates
