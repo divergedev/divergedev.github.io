@@ -7,7 +7,7 @@ Diverge provides first-class GitLab integration for automatic preview environmen
 
 ## 1. Controller Setup
 
-Create the controller and preview namespaces, store your GitLab API token and webhook shared secret as Kubernetes Secrets, and install the Diverge `0.25.0` Helm chart (`--create-namespace` on Helm only creates `diverge-system`, so create `diverge-previews` explicitly too):
+Create the controller and preview namespaces, store your GitLab API token and webhook shared secret as Kubernetes Secrets, and install the Diverge `0.26.0` Helm chart (`--create-namespace` on Helm only creates `diverge-system`, so create `diverge-previews` explicitly too):
 
 ```bash
 kubectl create namespace diverge-system
@@ -19,7 +19,7 @@ kubectl -n diverge-system create secret generic diverge-webhook-token \
   --from-literal=token=<webhook-secret>
 
 helm install diverge oci://ghcr.io/divergedev/charts/diverge \
-  --version 0.25.0 \
+  --version 0.26.0 \
   --namespace diverge-system \
   --set notifier.provider=gitlab \
   --set notifier.tokenSecretRef.name=diverge-gitlab \
@@ -125,7 +125,7 @@ GitLab MR slash commands require configuring authorized numeric GitLab user IDs 
 
 ### Turnkey GitLab CI/CD Catalog Component (Recommended)
 
-Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v0.25.0`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
+Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v0.26.0`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
 
 When `diverge_services` is left empty and `.diverge.yaml` is present in your repository, the component **automatically fetches the target branch, runs `diverge diff --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --output json`**, deploys a delta `PreviewGroup` (`mr-$CI_MERGE_REQUEST_IID`) for only the modified services, optionally runs `diverge verify` and/or `diverge replay` (including stateful `extract` / `{{var}}` chained traces and `diverge_auto_fix`), and exports a `preview.env` `dotenv` report artifact to downstream E2E test jobs:
 
@@ -135,7 +135,7 @@ Scrub recorded `.jsonl` / `.har` traces with `diverge record` (plus `--redact-bo
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v0.25.0
+  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v0.26.0
     inputs:
       diverge_registry: "$CI_REGISTRY_IMAGE"
       diverge_base_url: "https://staging.example.com"
@@ -221,11 +221,11 @@ variables:
 # All jobs needing the CLI use this image (git, curl, jq included)
 default:
   image:
-    name: ghcr.io/divergedev/diverge-cli:v0.25.0
+    name: ghcr.io/divergedev/diverge-cli:v0.26.0
     entrypoint: [""]
 ```
 
-To pin a specific version, replace `v0.25.0` with the desired tag. Use `latest` to always get the newest release.
+To pin a specific version, replace `v0.26.0` with the desired tag. Use `latest` to always get the newest release.
 
 #### Change Detection
 
