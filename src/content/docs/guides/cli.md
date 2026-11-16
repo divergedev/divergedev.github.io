@@ -10,6 +10,16 @@ The Diverge CLI provides tools to interact with your preview environments direct
 ### `diverge completion [bash|zsh|fish|powershell]`
 Generate shell autocompletion scripts with dynamic cluster-aware tab-completion for live `Environment` and `AgentTask` names.
 
+### `diverge cost [summary|top]`
+Inspect real-time and accrued FinOps preview spend, hibernation and `PreviewGroup` delta-routing savings, `AgentTask` LLM spend, namespace quota utilization, and top PR consumers (alias: `diverge finops`).
+- `-A, --all-namespaces` — Aggregate FinOps metrics across all namespaces
+- `-o, --output` — Output format: `table` (default), `json`, `yaml`, `csv`
+- `--top` — Maximum environment consumers to display (`10` default, `0` for unlimited)
+- `--sort` — Sort consumers by `hourly` (default), `accrued`, `projected`, or `uptime`
+- `--server-url` — Query `diverge-server` (`ClusterService.GetCostSummary`) instead of direct `kubeconfig`
+- `--opencost-url` — Enrich active environment compute burn with live OpenCost / Kubecost Allocation API data (defaults to `DIVERGE_OPENCOST_URL`)
+- `--fail-on-budget-warning` — Exit non-zero if any namespace exceeds its FinOps budget warning threshold
+
 ### `diverge create`
 Create an environment from the current branch.
 - `--mr` — Merge/Pull Request ID
