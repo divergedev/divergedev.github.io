@@ -20,18 +20,22 @@ The Diverge server collects the following metrics under the `diverge_server` nam
 
 ### Controller Metrics
 Diverge uses standard `controller-runtime` metrics for tracking reconcile loops and Kubernetes API interactions, plus custom metrics exported at `:8080/metrics`:
-- `diverge_environment_estimated_hourly_cost_usd` (labels: `environment`, `namespace`): Estimated hourly compute and database cost in USD for each active preview environment. Automatically drops to `0` when an environment scales to zero (`divergedev.com/hibernated: "true"`) or is deleted.
+- `diverge_environment_estimated_hourly_cost_usd` (labels: `environment`, `namespace`): Estimated hourly compute and database cost in USD for each preview environment (compute drops to `0` when annotated with `divergedev.com/hibernated: "true"` or when the environment phase is hibernated, while isolated database burn is retained until teardown).
+- `diverge_environment_hibernation_savings_hourly_usd` (labels: `environment`, `namespace`): Estimated hourly compute USD currently saved while a preview environment is hibernated.
+- `diverge_environment_cpu_cores_requested` (labels: `environment`, `namespace`): Active CPU core requests attributed to preview workloads in each environment (`0` while hibernated).
+- `diverge_environment_memory_gib_requested` (labels: `environment`, `namespace`): Active memory GiB requests attributed to preview workloads in each environment (`0` while hibernated).
+- `diverge_environment_lifetime_seconds` (labels: `namespace`, `database_mode`): Histogram of total preview environment lifetimes observed upon finalizer teardown.
 - `diverge_environment_ttl_remaining_seconds` (labels: `environment`, `namespace`): Seconds remaining until TTL expiry. Exports negative values when an environment is stuck past `ExpiresAt` in non-terminating phases so the `DivergeEnvironmentStuck` alert fires accurately.
 - `diverge_controller_async_provisions_total` (labels: `protocol`, `result`): Total async route provisions.
 - `diverge_controller_async_provision_duration_seconds` (labels: `protocol`): Async route provisioning duration.
 - `diverge_controller_async_teardowns_total` (labels: `protocol`, `result`): Total async route teardowns.
 - `diverge_controller_async_active_routes` (labels: `protocol`): Currently active async routes.
 
-## Cost Estimation, Idle Hibernation, Namespace Quotas, & Baseline Drift
+## Cost Attribution, Idle Hibernation, Namespace Quotas, & Baseline Drift
 
-The controller continuously estimates the hourly cloud cost of each `Environment` (`diverge_environment_estimated_hourly_cost_usd`) using actual `spec.deploy.resources.cpuRequest` (`$0.04/vCPU-hr`) and `memoryRequest` (`$0.004/GiB-hr`) when specified (falling back to `0.25 vCPU` + `0.5 GiB` = `$0.012/hr` per default pod replica) plus isolated database overhead (`$0.10/hr` for `cnpg`/`snapshot`/`fresh`, `$0.01/hr` for `schema`).
+The controller and `ClusterService.GetCostSummary` continuously attribute cloud spend per `Environment` based on service counts using explicit `spec.serviceConfig.resources.cpuRequest` (`$0.04/vCPU-hr` default via `DIVERGE_COST_VCPU_HOUR_USD`) and `memoryRequest` (`$0.004/GiB-hr` default via `DIVERGE_COST_MEMORY_GIB_HOUR_USD`) when specified (falling back to `0.25 vCPU` + `0.5 GiB` = `$0.012/hr` per preview service) plus isolated database overhead (`$0.08/hr` default via `DIVERGE_COST_DB_DEDICATED_HOUR_USD` for `cnpg`/`neon`/`snapshot`/`fresh`, and `$0.01/hr` default via `DIVERGE_COST_DB_SCHEMA_HOUR_USD` for `schema`).
 
-- **Idle Hibernation (`divergedev.com/hibernate-after`)**: Annotating an `Environment` with `divergedev.com/hibernate-after: "30m"` scales managed preview `Deployment`s and `StatefulSet`s down to `0` replicas, marks the environment `divergedev.com/hibernated: "true"`, emits a `Hibernated` Kubernetes Event, and zeroes active compute cost once no traffic has been observed since `divergedev.com/last-traffic-at` (or `status.createdAt`).
+- **Idle Hibernation & Sleep/Wake History (`divergedev.com/hibernate-after`)**: Environments default to a `30m` idle threshold (`divergedev.com/hibernate-after: "30m"`; set `"0"` or `"off"` to disable). When idle, the controller scales managed preview `Deployment`s and `StatefulSet`s down to `0` replicas, marks `divergedev.com/hibernated: "true"`, records `divergedev.com/hibernated-at` and cumulative `divergedev.com/hibernated-seconds` across wake cycles, emits a `Hibernated` Kubernetes Event, and zeroes active compute cost while preserving exact active-hour accrued spend.
 - **Namespace Quotas & FinOps LRU Auto-Hibernation**: Platform teams can annotate any Kubernetes `Namespace` to enforce hard FinOps budgets and cluster capacity guardrails:
   - `divergedev.com/max-active-environments`: Maximum concurrent non-hibernated preview `Environment`s in the namespace.
   - `divergedev.com/max-cnpg-clusters`: Maximum concurrent dedicated CloudNativePG (`cnpg`/`fresh`/`snapshot`) database clusters.
@@ -42,7 +46,7 @@ The controller continuously estimates the hourly cloud cost of each `Environment
   - `divergedev.com/drift-policy: "sync"`: Automatically re-runs `Deployer.Deploy`, injects the updated `divergedev.com/baseline-fingerprint` into preview pod templates to trigger a rolling restart, and emits a `BaselineSynced` Normal event.
   - `divergedev.com/drift-policy: "ignore"`: Disables baseline drift checks for the environment.
 - **End-to-End W3C Trace Context (`divergedev.com/traceparent`)**: GitHub and GitLab webhook handlers automatically extract incoming W3C `traceparent` HTTP headers (or mint a fresh `00-<trace-id>-<span-id>-01` trace context when absent) and attach `divergedev.com/traceparent` to created or updated `PreviewGroup`, `Environment`, and `AgentTask` CRs. `PreviewGroupReconciler` copies it to child `Environments`, `EnvironmentReconciler` links its OpenTelemetry reconcile span (`environment.name`, `environment.namespace`) to the caller's trace, and database migration and hook `Job` containers receive it as `TRACEPARENT`.
-- **Web Dashboard FinOps Visibility**: The Diverge Web Dashboard displays real-time fleet hourly and projected monthly spend, hibernation status, per-environment cost badges, and 1-click `Hibernate` / `Wake` controls alongside Magic Link copy buttons (`?_diverge_env=`).
+- **Web Dashboard FinOps Analytics (`/analytics`)**: The Diverge Web Dashboard includes a dedicated **Cost & Usage Analytics** page (`/analytics`) powered by `ClusterService.GetCostSummary`, surfacing fleet hourly burn, monthly run-rate, cumulative accrued spend, active service-hours, `AgentTask` LLM spend, hibernation & `PreviewGroup` delta-routing savings, per-namespace quota `<progress>` meters, per-service breakdowns, and sortable PR consumer tables alongside 1-click `Hibernate` / `Wake` controls and Magic Link copy buttons (`?_diverge_env=`).
 
 ## Health Endpoints
 
