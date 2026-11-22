@@ -26,6 +26,7 @@ Configures how the environment is deployed.
 - **`mode`**: The deployment strategy. Valid enums: `delta` (deploy only changed services), `full` (deploy all services).
 - **`changedServices`**: A list of services that have been modified.
 - **`baselineRef`**: Reference to the baseline environment to share unchanged services with (used in `delta` mode).
+- **`clusterRef`**: Optional remote spoke cluster target (`name` + same-namespace `kubeconfigSecretRef`, defaulting to key `kubeconfig` then `value`). Immutable once `status.targetCluster` is assigned; `"local"` is reserved for the hub cluster.
 - **`namespaceLabels`**: Optional map of labels to apply to the preview namespace. Useful for enabling Istio Ambient mesh (`istio.io/dataplane-mode: ambient`). Labels prefixed with `divergedev.com/` are protected and cannot be overridden.
 
 ### `routing`
@@ -48,8 +49,8 @@ Configures service-level deployment and Gateway API target settings.
 
 ### `database`
 Configures the data layer isolation.
-- **`mode`**: Valid enums: `shared`, `schema`, `snapshot`, `fresh`.
-- **`connectionRef`**: Secret reference containing credentials to the baseline database (auto-generated as `diverge-db-env-<env>-<hash8>` when omitted in `schema` mode).
+- **`mode`**: Valid enums: `shared`, `schema`, `snapshot`, `fresh`, `cnpg`, `neon`.
+- **`connectionRef`**: Secret reference containing credentials to the baseline database (auto-generated as `diverge-db-env-<env>-<hash8>` when omitted in `schema` mode, or `diverge-db-env-<env>` for branching providers such as `cnpg` and `neon`).
 - **`seedSource`**: Optional seed data source in `schema` mode (`public`, `schema:<name>`, or `configmap:<name>[/<key>]`) or source cluster name in `cnpg` `snapshot` mode.
 
 ### `lifecycle`
@@ -62,6 +63,7 @@ Manages the environment lifespan.
 The `status` subresource is updated by the Diverge controller to reflect the current state. Diverge uses a deep copy baseline for all status patches to ensure atomic updates.
 
 - **`phase`**: Current lifecycle phase (e.g., `Pending`, `Deploying`, `Running`, `Failed`, `Terminating`).
+- **`targetCluster`**: Write-ahead pinned cluster identity (`"local"` or federated spoke cluster name).
 - **`url`**: The preview URL for the environment.
 - **`services`**: Status of individual services within the environment.
 - **`conditions`**: Standard Kubernetes conditions (`NamespaceReady`, `DatabaseReady`, etc.).
@@ -80,12 +82,13 @@ The `status` subresource is updated by the Diverge controller to reflect the cur
 ### `PreviewGroupSpec`
 - **`source`**: Origin metadata (`provider`: `github` | `gitlab` | `local`, `project`, `mr`, `branch`).
 - **`routing`**: Shared routing header configuration (`headerKey`, `headerValue`, `externalURL`).
-- **`services`**: List of `ServicePreviewSpec` entries (`name`, `namespace`, `mode`: `image` | `local` | `baseline`, `image`, `port`, `localEndpoint`, `database`, `asyncRoutes`).
+- **`clusterRef`**: Optional group-wide federated spoke cluster target (`ClusterTargetRef`), inherited by child services unless overridden in `services[].clusterRef`.
+- **`services`**: List of `ServicePreviewSpec` entries (`name`, `namespace`, `mode`: `image` | `local` | `baseline`, `image`, `port`, `localEndpoint`, `database`, `asyncRoutes`, `clusterRef`).
 - **`lifecycle`**: Group lifespan (`ttl`, `cleanupOnMerge`).
 
 ### `PreviewGroupStatus`
 - **`phase`**: Current phase (`Pending`, `Deploying`, `Running`, `Degraded`, `Failed`, `Terminating`).
-- **`services`**: Per-service status (`name`, `namespace`, `mode`, `environmentName`, `phase`, `url`, `ready`).
+- **`services`**: Per-service status (`name`, `namespace`, `mode`, `environmentName`, `targetCluster`, `phase`, `url`, `ready`).
 - **`conditions`**: Standard Kubernetes conditions (`Ready`, `ReferenceGrantsReady`).
 
 ---

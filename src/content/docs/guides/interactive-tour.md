@@ -436,7 +436,7 @@ HTTP/1.1 200 OK
     <div class="dv-console">
       <div class="dv-console-bar">
         <span><code>diverge doctor --namespace demo-staging</code></span>
-        <a href="/guides/troubleshooting/#diagnostic-error-codes-div-101--div-110" class="dv-doc-link" id="dv-s6-doc-link">View DIV-101–DIV-110 Playbook →</a>
+        <a href="/guides/troubleshooting/#diagnostic-error-codes-div-101--div-111" class="dv-doc-link" id="dv-s6-doc-link">View DIV-101–DIV-110 Playbook →</a>
       </div>
       <pre class="dv-console-pre" id="dv-s6-output">$ diverge doctor --namespace demo-staging
 ✓ Kubernetes API &amp; Diverge CRDs (Environment, PreviewGroup, AgentTask) healthy
@@ -1601,7 +1601,7 @@ No issues found (0 critical, 0 warnings).</pre>
 
     const docScenarios = {
       healthy: {
-        link: '/guides/troubleshooting/#diagnostic-error-codes-div-101--div-110',
+        link: '/guides/troubleshooting/#diagnostic-error-codes-div-101--div-111',
         linkText: 'View DIV-101–DIV-110 Playbook →',
         out:
           '$ diverge doctor --namespace demo-staging\n' +
@@ -1691,4 +1691,4 @@ No issues found (0 critical, 0 warnings).</pre>
 3. **Full-Stack State Isolation**: Each preview automatically receives an isolated PostgreSQL schema (`preview_pr_42`) migrated via Ariga Atlas, an isolated Flipt feature flag namespace (`preview-pr-42`), and isolated Kafka topics (`pr-42.orders.events`).
 4. **Serverless Scale-to-Zero (`activator-proxy --wake-splash`)**: Idle previews scale down to `0` pods and wake seamlessly with a `202 Accepted` HTML splash screen that polls `GET /-/wakeup-status` until ready.
 5. **Cryptographic `AgentTask` Governance**: Autonomous coding agents run in `gvisor`/`kata` sandboxes with HMAC-SHA256 Macaroon capability caveats (`max_cost_usd`, `max_tokens`, `allowed_models`) enforced live on every `POST /api/v1/agenttask/meter` call.
-6. **Actionable Diagnostics (`DIV-101`–`DIV-110`)**: `diverge doctor` surfaces deterministic error codes linked directly to the [Troubleshooting Playbook](/guides/troubleshooting/#diagnostic-error-codes-div-101--div-110).
+6. **Actionable Diagnostics (`DIV-101`–`DIV-110`)**: `diverge doctor` surfaces deterministic error codes linked directly to the [Troubleshooting Playbook](/guides/troubleshooting/#diagnostic-error-codes-div-101--div-111).

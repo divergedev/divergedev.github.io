@@ -16,6 +16,8 @@ Inspect real-time and accrued FinOps preview spend, hibernation and `PreviewGrou
 - `-o, --output` — Output format: `table` (default), `json`, `yaml`, `csv`
 - `--top` — Maximum environment consumers to display (`10` default, `0` for unlimited)
 - `--sort` — Sort consumers by `hourly` (default), `accrued`, `projected`, or `uptime`
+- `--history` — Include closed/torn-down environments from the 30-day `diverge-finops-ledger` history
+- `--window-days` — Historical lookback window in days (`1`–`30`, `0` defaults to `30`)
 - `--server-url` — Query `diverge-server` (`ClusterService.GetCostSummary`) instead of direct `kubeconfig`
 - `--opencost-url` — Enrich active environment compute burn with live OpenCost / Kubecost Allocation API data (defaults to `DIVERGE_OPENCOST_URL`)
 - `--fail-on-budget-warning` — Exit non-zero if any namespace exceeds its FinOps budget warning threshold
@@ -25,6 +27,8 @@ Create an environment from the current branch.
 - `--mr` — Merge/Pull Request ID
 - `--branch` — Override git branch name
 - `--ttl` — Environment time-to-live (e.g. `4h`, `24h`)
+- `--cluster` — Target spoke cluster name (or `local` to force hub placement)
+- `--cluster-secret` — Same-namespace Secret (`<name>` or `<name>/<key>`) holding the spoke kubeconfig
 - `--atlas-dir`, `--atlas-schema`, `--atlas-mode`, `--atlas-engine`, `--atlas-blocking` — Ariga Atlas schema migration bundling flags
 
 ### `diverge curl <env> [path]`
@@ -64,7 +68,7 @@ Detect which services changed relative to a base branch.
 - `--output` — Output format: text, json
 
 ### `diverge doctor [env-name]`
-Run automated root-cause diagnostics (`DIV-101`–`DIV-110`) across workloads, database migrations, and `AgentTask` sandboxes.
+Run automated root-cause diagnostics (`DIV-101`–`DIV-111`) across hub and federated spoke workloads, database migrations, and `AgentTask` sandboxes.
 - `--json` — Output machine-readable JSON diagnostic report
 
 ### `diverge env export`
@@ -109,7 +113,10 @@ Open a preview `Environment` or `PreviewGroup` URL in your browser.
 Manage plugins.
 
 ### `diverge preview create`
-Create preview group.
+Create a multi-service `PreviewGroup`.
+- `-c, --config` — Path to `.diverge.yaml` configuration file (default: `.diverge.yaml`)
+- `--cluster` — Target spoke cluster name for the preview group (or `local` to force hub placement)
+- `--cluster-secret` — Same-namespace Secret (`<name>` or `<name>/<key>`) holding the spoke kubeconfig
 
 ### `diverge preview delete <name>`
 Delete preview group.
