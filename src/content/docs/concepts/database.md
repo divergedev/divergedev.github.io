@@ -62,7 +62,7 @@ Fresh mode provisions a completely new, empty database instance and executes you
 
 **Best for:** Self-hosted Kubernetes clusters requiring full PostgreSQL instance isolation per preview (including across federated spoke clusters).
 
-When `--database-provider=cnpg` or `spec.database.mode: cnpg` is used, Diverge reconciles a dedicated CloudNativePG `Cluster` CR (`postgresql.cnpg.io/v1`) for the preview environment (including optional `bootstrap.recovery` volume-snapshot cloning when `seedSource` names a baseline cluster) and cleans it up automatically on finalizer teardown.
+When `--database-provider=cnpg` or `spec.database.mode: cnpg` is used, Diverge reconciles a dedicated CloudNativePG `Cluster` CR (`postgresql.cnpg.io/v1`) for the preview environment — bootstrapping an empty instance via `initdb`, streaming-cloning an in-cluster baseline cluster via `pg_basebackup` by default when `seedSource` (or `divergedev.com/cnpg-source-cluster`) is set, or restoring from a Barman object-store backup via `bootstrap.recovery` when `divergedev.com/cnpg-bootstrap-mode: recovery` and `divergedev.com/cnpg-barman-destination-path` are configured — and cleans it up automatically on finalizer teardown.
 
 ## 6. Neon Serverless Postgres Copy-on-Write Mode (`mode: neon`)
 

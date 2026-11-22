@@ -19,7 +19,8 @@ The Helm chart deploys the controller manager and optional components (`server`,
 | `activatorProxy.enabled` | `false` | Deploy `activator-proxy` for scale-to-zero cold-start wake-up |
 | `server.enabled` | `false` | Deploy `diverge-server` (ConnectRPC API, `/mcp` HTTP endpoint, and Web Dashboard) |
 | `server.dashboard.enabled` | `true` | Serve the embedded React Web Dashboard when `server.enabled` is true |
-| `server.rbac.multiClusterSecrets` | `false` | Grant `diverge-server` Secret read access for federated spoke `StreamLogs` (or scope to `server.rbac.multiClusterSecretNames`) |
+| `server.rbac.multiClusterSecretNames` | `[]` | Recommended: explicit list of spoke kubeconfig `Secret` names `diverge-server` may `get` for federated `StreamLogs` |
+| `server.rbac.multiClusterSecrets` | `false` | Grant `diverge-server` un-named `Secret` `get` access for federated `StreamLogs` (**Warning**: with default `server.rbac.clusterWidePodAccess: true`, this grants `get` on **all cluster `Secrets`**, not only spoke kubeconfigs; prefer `server.rbac.multiClusterSecretNames`) |
 | `sandbox.enabled` | `true` | Enable `AgentTask` autonomous coding sandboxes and Macaroon capability auth |
 | `sandbox.provider` | `agent-sandbox` | Sandbox provider (`agent-sandbox`, `pod` / `k8s-pod`, or `noop`; automatically falls back to `pod` when `agent-sandbox` CRDs are absent) |
 | `sandbox.macaroonSecretRef.name` | `""` | Secret containing the 32-byte `root-key` shared by controller and server |
