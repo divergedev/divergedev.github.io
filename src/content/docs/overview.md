@@ -56,6 +56,8 @@ Diverge is rigorously tested across packages to ensure robust preview environmen
 
 ## Recently Shipped
 
+- **Multi-Cluster Federation Phase 2, Neon CoW Postgres Branching & MCP Historical FinOps (`v0.28`)** — `.diverge.yaml` `deploy.cluster_ref` + generated JSON Schemas, CLI/CI `--cluster` & `--cluster-secret` flags (`diverge create`, `diverge preview create`, GitHub Action, GitLab CI component), `ArgoCD` & `ArgoRolloutsDeployer` spoke destination support, `diverge doctor` `DIV-111` spoke reachability diagnostics, Web Dashboard federation UX, the `neon` Copy-on-Write database provider (`DATABASE_URL` + `DATABASE_URL_DIRECT`, falling back to the pooled URI when unpooled lookup fails), and `include_historical` / `window_days` on `diverge_get_cost_summary`
+- **Multi-Cluster Preview Federation, Historical FinOps Ledger & Istio Ambient Waypoint E2E (`v0.27`)** — Hub-and-spoke kubeconfig resolution (`spec.deploy.clusterRef` & `PreviewGroup.spec.clusterRef`) with SSRF-hardened HTTPS validation and immutable `status.targetCluster` pinning across `DirectDeployer`, `KEDAHTTPScaledObjectDeployer`, `GatewayRouter`, `IstioRouter`, `CNPGDatabaseProvider`, and `StreamLogs`, durable 30-day teardown cost history (`diverge-finops-ledger`, `diverge cost --history --window-days`, `/analytics` 7d/30d trend charts), and Istio Ambient `ztunnel` + Waypoint L7 GAMMA conformance
 - **CLI/MCP Cost Export, Live OpenCost Attribution & Multi-Mesh E2E Conformance (`v0.26`)** — `diverge cost` (`finops`) CLI with `table`/`json`/`yaml`/`csv` exports and `--fail-on-budget-warning`, `diverge_get_cost_summary` MCP tool, OpenCost Allocation API live compute/resource enrichment (`DIVERGE_OPENCOST_URL`), Slack/HTTP budget webhook alerts (`DIVERGE_BUDGET_WEBHOOK_URL`), 1-click CSV/JSON export + live OpenCost/alert-threshold indicators on `/analytics` (`/usage`), and automated Istio, Linkerd, and Cilium Gateway API/GAMMA E2E conformance
 - **FinOps Cost Attribution, Hibernation Savings & Usage Analytics (`v0.25`)** — Configurable unit rate cards (`DIVERGE_COST_*`), sleep/wake transition tracking (`divergedev.com/hibernated-at` / `divergedev.com/hibernated-seconds`), `ClusterService.GetCostSummary` with scoped `diverge_get_cost_summary` Macaroon authorization, Prometheus resource/savings/lifetime metrics, and the `/analytics` Web Dashboard
 - **Native Helm Notifier Config & Opt-In Organization Webhooks (`v0.24`)** — `notifier.baseUrl`, `notifier.tokenSecretRef`, `extraArgs` / `extraEnv`, per-repo `.diverge.yaml` `image.repository` overrides, and automatic skipping of non-Diverge repositories under `serviceconfig`
@@ -77,4 +79,5 @@ Diverge is rigorously tested across packages to ensure robust preview environmen
 
 ## Roadmap (Coming Soon)
 
-- **Multi-cluster support** — Deploy previews across federated remote clusters
+- **Dynamic multi-cluster placement & spoke FinOps** — Policy/capacity-based spoke selection and multi-cluster OpenCost aggregation
+- **Serverless CoW database hibernation sync** — Automatic CoW compute endpoint suspend/wake coordination and dedicated branch rate-cards

@@ -7,7 +7,7 @@ Diverge provides first-class GitHub integration for automatic preview environmen
 
 ## 1. Controller Setup
 
-Create the controller and preview namespaces, store your GitHub API token and webhook shared secret as Kubernetes Secrets, and install the Diverge `0.26.0` Helm chart:
+Create the controller and preview namespaces, store your GitHub API token and webhook shared secret as Kubernetes Secrets, and install the Diverge `0.28.0` Helm chart:
 
 ```bash
 kubectl create namespace diverge-system
@@ -19,7 +19,7 @@ kubectl -n diverge-system create secret generic diverge-webhook-token \
   --from-literal=token=<webhook-secret>
 
 helm install diverge oci://ghcr.io/divergedev/charts/diverge \
-  --version 0.26.0 \
+  --version 0.28.0 \
   --namespace diverge-system \
   --set notifier.provider=github \
   --set notifier.tokenSecretRef.name=diverge-github \
@@ -111,9 +111,9 @@ For security, Diverge verifies the commenter's `author_association` before execu
 
 ## 3. GitHub Actions Workflow
 
-### Turnkey Composite Action (`divergedev/diverge@v0.26.0` — Recommended)
+### Turnkey Composite Action (`divergedev/diverge@v0.28.0` — Recommended)
 
-Use the official `divergedev/diverge@v0.26.0` composite GitHub Action (defined in the root [`action.yml`](https://github.com/divergedev/diverge/blob/main/action.yml) of `divergedev/diverge`) to validate `.diverge.yaml`, run `diverge diff`, deploy a delta `PreviewGroup` for only modified microservices, run `diverge verify` SLO/baseline checks, replay recorded `.jsonl` / `.har` traffic traces (including stateful `extract` / `{{var}}` multi-step flows and `--auto-fix` self-healing), and pass routing headers directly into Playwright or Cypress E2E tests:
+Use the official `divergedev/diverge@v0.28.0` composite GitHub Action (defined in the root [`action.yml`](https://github.com/divergedev/diverge/blob/main/action.yml) of `divergedev/diverge`) to validate `.diverge.yaml`, run `diverge diff`, deploy a delta `PreviewGroup` for only modified microservices, run `diverge verify` SLO/baseline checks, replay recorded `.jsonl` / `.har` traffic traces (including stateful `extract` / `{{var}}` multi-step flows and `--auto-fix` self-healing), and pass routing headers directly into Playwright or Cypress E2E tests:
 
 :::caution[Sanitize Replay Traces Before Committing to Git]
 Scrub recorded `.jsonl` / `.har` traces with `diverge record` (plus `--redact-body-field`) or `diverge replay sanitize` **before committing them to the repository**. Runtime CI inputs (`replay-strip-auth: "true"`, `replay-redact-query`, `replay-redact-body-fields`) provide an additional safeguard during replay rather than a substitute for pre-commit sanitization.
@@ -145,7 +145,7 @@ jobs:
 
       - name: Deploy Diverge Delta Preview
         id: diverge
-        uses: divergedev/diverge@v0.26.0
+        uses: divergedev/diverge@v0.28.0
         with:
           action: deploy
           kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
@@ -176,7 +176,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: divergedev/diverge@v0.26.0
+      - uses: divergedev/diverge@v0.28.0
         with:
           action: teardown
           kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
@@ -197,7 +197,7 @@ export default defineConfig({
 });
 ```
 
-#### `divergedev/diverge@v0.26.0` Inputs
+#### `divergedev/diverge@v0.28.0` Inputs
 
 | Input | Default | Description |
 | :--- | :--- | :--- |
@@ -216,6 +216,8 @@ export default defineConfig({
 | `header-key` | `x-diverge-env` | HTTP routing header key |
 | `header-value` | `<preview-name>` | HTTP routing header value |
 | `ttl` | `4h` | Preview environment time-to-live duration (e.g. `4h`, `24h`) |
+| `cluster` | `""` | Optional logical spoke cluster name (`local` or federated spoke name) |
+| `cluster-secret` | `""` | Same-namespace Kubernetes Secret holding the spoke kubeconfig when targeting a remote `cluster` |
 | `base-url` | `""` | Optional staging/gateway base URL to construct a shareable `?_diverge_env=` preview URL |
 | `wait` | `false` | Wait for `PreviewGroup` `Ready` condition before completing |
 | `wait-timeout` | `180s` | Timeout when waiting for `PreviewGroup` readiness |
@@ -238,7 +240,7 @@ export default defineConfig({
 | `auto-fix` | `false` | Automatically create or update a self-healing `AgentTask` when `verify` or `replay` fails |
 | `dry-run` | `false` | Render `PreviewGroup` manifest without applying to Kubernetes |
 
-#### `divergedev/diverge@v0.26.0` Outputs
+#### `divergedev/diverge@v0.28.0` Outputs
 
 | Output | Example | Description |
 | :--- | :--- | :--- |
@@ -396,7 +398,7 @@ To pin a specific version:
 ```yaml
 - uses: divergedev/setup-diverge@v1
   with:
-    version: '0.26.0'
+    version: '0.28.0'
 ```
 
 It resolves the latest release via GitHub API, caches the binary per OS/arch/version using `actions/cache`, and adds `diverge` to `PATH`.

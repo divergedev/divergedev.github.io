@@ -88,14 +88,14 @@ server:
 
 ## 4. Interactive Dashboard Features
 
-- **Environment Detail & Live Feature Flag Overrides (`FlagsTab`)**:
-  - Add, toggle (`true` / `false`), or remove feature flag overrides (`spec.features.overrides`) directly from the **Flags** tab using partial `UpdateMask` (`spec.features.overrides`) updates, alongside one-click TTL extension and hook job retries.
+- **Environment Creation, Target Cluster Placement & Live Feature Flag Overrides (`FlagsTab`)**:
+  - Create preview `Environment`s targeting either `local` or a federated spoke cluster (`spec.deploy.clusterRef` + same-namespace kubeconfig `Secret`), inspect resolved target clusters across the Environments list and **Environment Detail** overview, and add, toggle (`true` / `false`), or remove feature flag overrides (`spec.features.overrides`) directly from the **Flags** tab using partial `UpdateMask` (`spec.features.overrides`) updates alongside one-click TTL extension and hook job retries.
 - **Interactive Verification & Contract Replay (`VerifyReplayTab`)**:
   - Run `doctor` diagnostics + HTTP readiness/latency SLO checks (`POST /api/v1/environments/verify`) or paste/upload `.jsonl` / `.har` traces for baseline-vs-preview contract diffing (`POST /api/v1/environments/replay`) directly from the **Verify & Replay** tab, with extracted variable badges (`[REDACTED]` for header-derived values), field-level diff tables, and one-click **Auto-Fix (`AgentTask`)** escalation.
 - **Multi-Service `PreviewGroup` Detail**:
-  - Inspect `Overview` (source branch/PR, copyable routing headers, TTL countdown, and child service status table with direct links to each child `Environment`), interactive `Topology` graph, Kubernetes `Conditions`, and live `YAML`.
+  - Inspect `Overview` (source branch/PR, copyable routing headers, TTL countdown, group target cluster, and child service status table with per-service target cluster resolution and direct links to each child `Environment`), interactive `Topology` graph, Kubernetes `Conditions`, and live `YAML`.
 - **Autonomous `AgentTask` Steering & Linked Previews**:
   - Send live steering guidance, pause/resume execution with optional USD budget bumps, stream sandbox pod logs, and jump directly to the task's **Linked Preview Environment** (`agent-preview-<task>`) and external preview URL.
-- **FinOps Cost & Usage Analytics (`/analytics`)**:
-  - Inspect fleet hourly burn, monthly run-rate, cumulative accrued spend, active service-hours, `AgentTask` LLM spend, scale-to-zero hibernation savings, and `PreviewGroup` delta-routing savings via `ClusterService.GetCostSummary`.
-  - Filter by namespace scope, monitor per-namespace quota utilization (`max-active-environments`, `max-hourly-cost-usd`, `max-cnpg-clusters`), inspect per-service footprints, and sort top PR consumers with live TTL and budget warning callouts.
+- **FinOps Cost & Usage Analytics (`/analytics` and `/usage`)**:
+  - Inspect fleet hourly burn, monthly run-rate, cumulative accrued spend, active service-hours, `AgentTask` LLM spend, scale-to-zero hibernation savings, and `PreviewGroup` delta-routing savings via `ClusterService.GetCostSummary`, with inline **OpenCost Live** vs. **Rate-Card Estimate** attribution badges and interactive **7d / 30d daily spend & savings trend charts** backed by the 30-day `diverge-finops-ledger` teardown history.
+  - Filter by namespace scope, toggle **Include closed/deleted history** to inspect torn-down PR consumers alongside live previews, monitor per-namespace quota utilization (`max-active-environments`, `max-hourly-cost-usd`, `max-cnpg-clusters`) and custom warning thresholds (`divergedev.com/budget-alert-threshold`), inspect per-service footprints, sort top PR consumers with live TTL and budget warning callouts, and download **1-click CSV or JSON chargeback reports** (`Export CSV` / `Export JSON`).

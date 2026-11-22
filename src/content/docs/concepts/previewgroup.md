@@ -70,3 +70,7 @@ spec:
 ```
 
 The controller takes this single definition and reconciles it into the individual routes, deployments, databases, and cross-namespace grants required for the full preview environment to function smoothly.
+
+## Multi-Cluster Spoke Federation (`spec.clusterRef`)
+
+A `PreviewGroup` can burst all of its child `Environment` workloads onto a remote spoke Kubernetes cluster by setting `spec.clusterRef` (or via `.diverge.yaml` `deploy.cluster_ref` / `diverge preview create --cluster <name> --cluster-secret <secret>`), while individual entries in `spec.services[]` can override `clusterRef` (including `clusterRef: {}` to pin a specific service back to `local`). Once provisioned, each child environment pins `status.targetCluster` immutably and surfaces its resolved target cluster in `status.services[].targetCluster`, `diverge preview status`, and the Web Dashboard.

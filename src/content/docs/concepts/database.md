@@ -3,7 +3,7 @@ title: Database Modes
 description: Comprehensive overview of Diverge's database isolation strategies for preview environments.
 ---
 
-Preview environments often need varying levels of database isolation. Diverge provides four distinct database modes to fit your specific testing requirements and infrastructure constraints.
+Preview environments often need varying levels of database isolation. Diverge provides six database modes (`shared`, `schema`, `snapshot`, `fresh`, `cnpg`, and `neon`) to fit your specific testing requirements and infrastructure constraints.
 
 ## 1. Shared Mode
 
@@ -57,3 +57,19 @@ Snapshot mode clones data from a production or staging snapshot into a dedicated
 **Best for:** Clean-slate testing and end-to-end integration tests.
 
 Fresh mode provisions a completely new, empty database instance and executes your defined seed scripts or schema migrations to populate it. This ensures a consistent, predictable state for every preview environment.
+
+## 5. CloudNativePG Mode (`mode: cnpg`)
+
+**Best for:** Self-hosted Kubernetes clusters requiring full PostgreSQL instance isolation per preview (including across federated spoke clusters).
+
+When `--database-provider=cnpg` or `spec.database.mode: cnpg` is used, Diverge reconciles a dedicated CloudNativePG `Cluster` CR (`postgresql.cnpg.io/v1`) for the preview environment (including optional `bootstrap.recovery` volume-snapshot cloning when `seedSource` names a baseline cluster) and cleans it up automatically on finalizer teardown.
+
+## 6. Neon Serverless Postgres Copy-on-Write Mode (`mode: neon`)
+
+**Best for:** Instant Copy-on-Write (CoW) PostgreSQL branching with zero baseline storage duplication.
+
+When `--database-provider=neon`, `spec.database.mode: neon`, or `divergedev.com/database-provider: neon` is configured, `NeonDatabaseProvider` provisions a deterministic CoW branch (`diverge-<env>-<8hex>`) via the Neon REST API v2:
+
+- **Dual Pooled & Direct Endpoints**: Writes both `DATABASE_URL` (pooled `-pooler.` connection URI) and `DATABASE_URL_DIRECT` (unpooled URI for DDL/migrations, falling back to the pooled URI when unpooled lookup fails) plus `DIVERGE_NEON_BRANCH_ID`, `DIVERGE_NEON_BRANCH_NAME`, and `DIVERGE_NEON_PROJECT_ID` into the generated `diverge-db-env-<env>` Secret.
+- **Non-Blocking Provisioning**: Automatically requeues every `3s` while a branch is in `init` or when Neon returns `423 Locked` due to a concurrent project operation.
+- **SSRF & Credential Isolation**: Enforces `https://` with dial-time private/loopback/link-local IP blocking, requires a Secret-scoped `apiKey` whenever `spec.database.connectionRef` overrides `baseUrl`, and keeps Neon API credentials strictly hub-side (never mounting the referenced API credential Secret into preview pods).
