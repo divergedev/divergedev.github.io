@@ -215,7 +215,7 @@ export default defineConfig({
 | `pr-number` | `""` | Pull request number override |
 | `services` | `""` | Explicit comma- or newline-separated service specs (overrides `diverge diff`) |
 | `image-registry` | `""` | Container registry prefix for changed service images (e.g. `ghcr.io/acme`) |
-| `image-tag` | `""` | Image tag for changed services. Defaults to resolved `preview-name` when `group` is unset, or to the first 12 characters of `GITHUB_SHA` (falling back to `git rev-parse --short=12 HEAD` or `pr-<number>`) when `group` is set. Set this input explicitly to override either default. |
+| `image-tag` | `""` | Image tag for changed services. Defaults to resolved `preview-name` when `group` is unset, or to the first 12 characters of `GITHUB_SHA` (the synthetic merge commit on `pull_request` events, falling back to `git rev-parse --short=12 HEAD` or `pr-<number>`) when `group` is set. Set this input explicitly to pin a specific tag (see [Composing Multiple PRs with `group`](#composing-multiple-prs-with-group-image-tag-migration) below). |
 | `header-key` | `x-diverge-env` | HTTP routing header key |
 | `header-value` | `<preview-name>` | HTTP routing header value |
 | `ttl` | `4h` | Preview environment time-to-live duration (e.g. `4h`, `24h`) |
@@ -254,6 +254,61 @@ export default defineConfig({
 | `routing-header` | `x-diverge-env: pr-42` | HTTP routing header string for `curl` or API tests |
 | `routing-header-json` | `{"x-diverge-env":"pr-42"}` | JSON object of the routing header for Playwright `extraHTTPHeaders` or Cypress |
 | `preview-url` | `https://staging.example.com/?_diverge_env=pr-42` | Shareable zero-extension preview URL with `?_diverge_env=` query parameter |
+
+#### Composing Multiple PRs with `group` (Image Tag Migration)
+
+:::caution[Migrating Existing Workflows to `group`]
+When `group` is unset and `image-tag` is omitted, `divergedev/diverge@v0.29.0` pulls `<image-registry>/<service>:<preview-name>` (for example `pr-42`). Adding `group` changes the default `image-tag` to `${GITHUB_SHA:0:12}` (note that on `pull_request` events, `GITHUB_SHA` is the synthetic merge commit rather than `github.event.pull_request.head.sha`).
+
+If your existing workflow builds and pushes `pr-<number>` tags, adding `group` without aligning image tags will cause image pull failures. Choose **one** of these migration options:
+
+1. **Keep your existing `pr-<number>` image tags** by passing `image-tag: pr-${{ github.event.pull_request.number }}` explicitly to `divergedev/diverge@v0.29.0`.
+2. **Adopt the default `${GITHUB_SHA:0:12}` tag** by tagging and pushing your built container images with `${GITHUB_SHA:0:12}` and omitting `image-tag`.
+
+In both cases, pass the same `group` input to your `action: teardown` job so closing a PR runs `diverge preview leave` (detaching only that PR's services) instead of deleting sibling PRs in the shared `PreviewGroup`.
+:::
+
+```yaml
+jobs:
+  preview:
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build and Push Service Image
+        env:
+          IMAGE_TAG: pr-${{ github.event.pull_request.number }}
+        run: |
+          docker build -t "ghcr.io/acme/checkout-api:${IMAGE_TAG}" .
+          docker push "ghcr.io/acme/checkout-api:${IMAGE_TAG}"
+
+      - name: Join Shared PreviewGroup
+        id: diverge
+        uses: divergedev/diverge@v0.29.0
+        with:
+          action: deploy
+          kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
+          group: ${{ github.head_ref }}
+          image-registry: ghcr.io/acme
+          # Explicit tag matching the build step above; omit if your build pushes ${GITHUB_SHA:0:12}
+          image-tag: pr-${{ github.event.pull_request.number }}
+          base-url: https://staging.example.com
+          wait: "true"
+
+  cleanup:
+    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: divergedev/diverge@v0.29.0
+        with:
+          action: teardown
+          kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
+          group: ${{ github.head_ref }}
+```
 
 ---
 

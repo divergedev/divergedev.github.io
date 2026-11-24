@@ -100,7 +100,7 @@ When frontend, backend, or API changes live in separate open PRs or MRs, you can
    - GitLab CI Component (`divergedev/diverge/preview@v0.29.0`): set `diverge_group: "$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME"`
 
 4. **Web Dashboard & MCP**:
-   In the Web Dashboard, click **Compose Preview Group** (on **Preview Groups**) or **Join Services** / per-service **Detach** (on **Preview Group Detail**). AI assistants can invoke `diverge_join_preview_group` and `diverge_leave_preview_group` (gated by `--allow-destructive` on `diverge mcp`).
+   In the Web Dashboard, click **Compose Preview Group** (on **Preview Groups**) or **Join Services** / per-service **Detach** (on **Preview Group Detail**). AI assistants can invoke `diverge_join_preview_group` to attach services and `diverge_leave_preview_group` to detach them (only `diverge_leave_preview_group` requires `--allow-destructive` on the CLI `diverge mcp` `stdio` server; remote `POST /mcp` enforces RBAC or Macaroon caveats for both).
 
 ### How Multi-MR Composition Works
 
