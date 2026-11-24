@@ -262,53 +262,96 @@ When `group` is unset and `image-tag` is omitted, `divergedev/diverge@v0.29.0` p
 
 If your existing workflow builds and pushes `pr-<number>` tags, adding `group` without aligning image tags will cause image pull failures. Choose **one** of these migration options:
 
-1. **Keep your existing `pr-<number>` image tags** by passing `image-tag: pr-${{ github.event.pull_request.number }}` explicitly to `divergedev/diverge@v0.29.0`.
-2. **Adopt the default `${GITHUB_SHA:0:12}` tag** by tagging and pushing your built container images with `${GITHUB_SHA:0:12}` and omitting `image-tag`.
-
-In both cases, pass the same `group` input to your `action: teardown` job so closing a PR runs `diverge preview leave` (detaching only that PR's services) instead of deleting sibling PRs in the shared `PreviewGroup`.
+1. **Adopt the default `${GITHUB_SHA:0:12}` tag (Recommended)**: Tag and push every changed service image with `${GITHUB_SHA:0:12}` (unique per push so Kubernetes pulls updated images under the default `IfNotPresent` pull policy) and omit `image-tag`.
+2. **Pin an explicit `image-tag`**: Pass `image-tag` explicitly to `divergedev/diverge@v0.29.0` to match the tag your build step publishes. Prefer a commit-unique tag; if you reuse a mutable tag such as `pr-${{ github.event.pull_request.number }}`, also configure `imagePullPolicy: Always` on your services so nodes do not serve cached images from an earlier push.
 :::
 
 ```yaml
+name: Diverge Shared PreviewGroup
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: diverge-preview-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   preview:
     if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Build and Push Service Image
-        env:
-          IMAGE_TAG: pr-${{ github.event.pull_request.number }}
-        run: |
-          docker build -t "ghcr.io/acme/checkout-api:${IMAGE_TAG}" .
-          docker push "ghcr.io/acme/checkout-api:${IMAGE_TAG}"
+      - name: Detect Changed Services
+        id: diff
+        uses: divergedev/diverge@v0.29.0
+        with:
+          action: diff
 
+      - name: Log in to GitHub Container Registry
+        if: steps.diff.outputs.changed-count != '0'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Changed Service Images
+        if: steps.diff.outputs.changed-count != '0'
+        env:
+          CHANGED_SERVICES: ${{ steps.diff.outputs.changed-services }}
+        run: |
+          IMAGE_TAG="${GITHUB_SHA:0:12}"
+          while IFS= read -r svc; do
+            [[ -n "$svc" ]] || continue
+            # Adjust the Dockerfile path and build context to match your repository layout
+            docker build -t "ghcr.io/acme/${svc}:${IMAGE_TAG}" -f "services/${svc}/Dockerfile" .
+            docker push "ghcr.io/acme/${svc}:${IMAGE_TAG}"
+          done < <(printf '%s' "$CHANGED_SERVICES" | jq -r '.[]')
+
+      # Runs even when changed-count == '0' so reverting all service changes detaches this PR from the group
       - name: Join Shared PreviewGroup
         id: diverge
         uses: divergedev/diverge@v0.29.0
         with:
           action: deploy
           kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
+          # Every participating PR (and its teardown job) must resolve to the same group value
           group: ${{ github.head_ref }}
           image-registry: ghcr.io/acme
-          # Explicit tag matching the build step above; omit if your build pushes ${GITHUB_SHA:0:12}
-          image-tag: pr-${{ github.event.pull_request.number }}
+          # Omit image-tag to use the default ${GITHUB_SHA:0:12} pushed above,
+          # or set image-tag explicitly to match a custom commit-unique tag
           base-url: https://staging.example.com
           wait: "true"
 
   cleanup:
     if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: divergedev/diverge@v0.29.0
         with:
           action: teardown
           kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
+          # Must match the group value used in the preview job so only this PR's services detach
           group: ${{ github.head_ref }}
 ```
+
+:::note[Shared `group` Value Across Repositories]
+Every participating PR across repositories—and both its `action: deploy` and `action: teardown` jobs—must resolve to the **same `group` value** to join and cleanly leave the same shared `PreviewGroup`. Setting `group: ${{ github.head_ref }}` works automatically when participating PRs use identical branch names across repositories (for example `feat/checkout`). If sibling PRs use different branch names (for example `feature/api` and `feature/web`), set one shared configured `group` name in each repository's workflow instead of `github.head_ref`, or join them interactively with `/diverge group <name>`.
+:::
 
 ---
 
