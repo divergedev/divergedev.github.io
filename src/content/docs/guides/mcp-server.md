@@ -111,7 +111,7 @@ The MCP server provides the following tools grouped by service:
 | `diverge_get_environment` | Fetch details, conditions, URLs, and phase status of a specific preview environment. |
 | `diverge_list_environments` | List environments with optional filters (namespace, branch, phase, label selector) and pagination. |
 | `diverge_update_environment` | Update an existing environment spec or update mask. |
-| `diverge_delete_environment` | Delete an environment and clean up its resources (*requires `--allow-destructive`*). |
+| `diverge_delete_environment` | Delete an environment and clean up its resources (*requires `--allow-destructive` on CLI `stdio`*). |
 | `diverge_extend_ttl` | Extend the remaining Time-To-Live (TTL) for an active preview environment. |
 | `diverge_list_hook_jobs` | List database migration and post-deploy lifecycle hook Jobs for an environment. |
 | `diverge_retry_hook` | Re-trigger a failed lifecycle hook Job (e.g., migration or post-deploy task). |
@@ -125,8 +125,8 @@ The MCP server provides the following tools grouped by service:
 | `diverge_list_preview_groups` | List PreviewGroups across namespaces with label selectors and pagination. |
 | `diverge_update_preview_group` | Update configuration or service definitions for a PreviewGroup. |
 | `diverge_join_preview_group` | Create or join a shared multi-MR `PreviewGroup` by attaching existing PR/MR `Environment`s (`environment_names`) or explicit `services` (`name`, `image`, `namespace`, `port`, `mode`, `project`, `mr`, `branch`) plus `group_name`, `namespace`, `header_key`, `header_value`, `external_url`, `ttl_seconds`, `shared_database_mode`, and `force`. Preserves per-service database configs by default unless `shared_database_mode` is set. |
-| `diverge_leave_preview_group` | Detach services (`service_names`), environments (`environment_names`), or `project` + `mr` from a shared `PreviewGroup` (falling back to baseline) and automatically delete the `PreviewGroup` when the last active service leaves (*requires `--allow-destructive`*). |
-| `diverge_delete_preview_group` | Tear down a PreviewGroup and its child environments (*requires `--allow-destructive`*). |
+| `diverge_leave_preview_group` | Detach services (`service_names`), environments (`environment_names`), or `project` + `mr` from a shared `PreviewGroup` (falling back to baseline) and automatically delete the `PreviewGroup` when the last active service leaves (*requires `--allow-destructive` on CLI `stdio`*). |
+| `diverge_delete_preview_group` | Tear down a PreviewGroup and its child environments (*requires `--allow-destructive` on CLI `stdio`*). |
 
 ### Built-in Helper & Diagnostic Tools
 
@@ -151,7 +151,7 @@ The MCP server provides the following tools grouped by service:
 | `diverge_pause_task` | Suspend an active `AgentTask` (`spec.suspended: true`) so the controller transitions it to `Paused` and revokes its Macaroon capability token upon reconciliation. |
 | `diverge_resume_task` | Resume a paused `AgentTask` and mint a fresh Macaroon capability token. |
 | `diverge_guide_task` | Send steering instructions or updated budget/iteration limits to an `AgentTask` and resume execution. |
-| `diverge_delete_task` | Delete an `AgentTask` and tear down its sandbox (*requires `--allow-destructive`*). |
+| `diverge_delete_task` | Delete an `AgentTask` and tear down its sandbox (*requires `--allow-destructive` on CLI `stdio`*). |
 
 ---
 

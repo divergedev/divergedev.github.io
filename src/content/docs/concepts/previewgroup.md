@@ -97,7 +97,7 @@ When frontend, backend, or API changes live in separate open PRs or MRs, you can
 3. **CI / CD (Shared Branch Slug)**:
    Pass the same `group` / `diverge_group` slug (for example a shared feature branch name) across repositories in CI so pipelines join on deploy and detach only the closing PR/MR on teardown:
    - GitHub Action (`divergedev/diverge@v0.29.0`): set `group: ${{ github.head_ref }}`
-   - GitLab CI Component (`divergedev/diverge/preview@v0.29.0`): set `diverge_group: "$CI_COMMIT_REF_SLUG"`
+   - GitLab CI Component (`divergedev/diverge/preview@v0.29.0`): set `diverge_group: "$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME"`
 
 4. **Web Dashboard & MCP**:
    In the Web Dashboard, click **Compose Preview Group** (on **Preview Groups**) or **Join Services** / per-service **Detach** (on **Preview Group Detail**). AI assistants can invoke `diverge_join_preview_group` and `diverge_leave_preview_group` (gated by `--allow-destructive` on `diverge mcp`).

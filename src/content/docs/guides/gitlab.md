@@ -170,7 +170,7 @@ If you are self-hosting or referencing the template directly from the repository
 | `diverge_ttl` | `4h` | TTL for preview environments (e.g. `4h`, `24h`) |
 | `diverge_registry` | `""` | Container registry prefix for preview images (defaults to `$CI_REGISTRY_IMAGE`) |
 | `diverge_namespace` | `default` | Default Kubernetes namespace for preview workloads. When `diverge_verify` or `diverge_replay_from` is enabled, the kubeconfig context namespace must match this value. |
-| `diverge_group` | `""` | Optional shared multi-MR `PreviewGroup` name or branch slug (e.g. `$CI_COMMIT_REF_SLUG`) to join on deploy and detach from on cleanup |
+| `diverge_group` | `""` | Optional shared multi-MR `PreviewGroup` name or raw branch name (e.g. `$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME`) to join on deploy and detach from on cleanup |
 | `diverge_cluster` | `""` | Optional logical spoke cluster name (`local` or federated spoke name) |
 | `diverge_cluster_secret` | `""` | Same-namespace Kubernetes Secret holding the spoke kubeconfig when targeting a remote `diverge_cluster` |
 | `diverge_base_url` | `""` | Optional staging/gateway URL to construct a shareable `?_diverge_env=` preview URL |

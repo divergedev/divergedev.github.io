@@ -215,7 +215,7 @@ export default defineConfig({
 | `pr-number` | `""` | Pull request number override |
 | `services` | `""` | Explicit comma- or newline-separated service specs (overrides `diverge diff`) |
 | `image-registry` | `""` | Container registry prefix for changed service images (e.g. `ghcr.io/acme`) |
-| `image-tag` | `""` | Image tag for changed services (defaults to resolved `preview-name`) |
+| `image-tag` | `""` | Image tag for changed services. Defaults to resolved `preview-name` when `group` is unset, or to the first 12 characters of `GITHUB_SHA` (falling back to `git rev-parse --short=12 HEAD` or `pr-<number>`) when `group` is set. Set this input explicitly to override either default. |
 | `header-key` | `x-diverge-env` | HTTP routing header key |
 | `header-value` | `<preview-name>` | HTTP routing header value |
 | `ttl` | `4h` | Preview environment time-to-live duration (e.g. `4h`, `24h`) |
