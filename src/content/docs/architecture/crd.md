@@ -5,7 +5,7 @@ description: Comprehensive reference for the Diverge Environment, PreviewGroup, 
 
 Diverge provides three Kubernetes Custom Resource Definitions (CRDs) under the `divergedev.com/v1alpha1` API group:
 1. **`Environment`** (Namespaced) — Manages an isolated preview deployment, route, and database for a service.
-2. **`PreviewGroup`** (Cluster-scoped) — Coordinates multi-service delta preview environments across namespaces for a single Pull/Merge Request.
+2. **`PreviewGroup`** (Cluster-scoped) — Coordinates multi-service delta preview environments across namespaces for a single Pull/Merge Request or composed across multiple open PRs/MRs (marked with `divergedev.com/composed: "true"` and `divergedev.com/group-members`).
 3. **`AgentTask`** (Namespaced) — Runs an autonomous AI coding agent inside a network-isolated sandbox pod with Macaroon capability tokens, budget guardrails, and an optional linked preview `Environment`.
 
 ---
@@ -77,18 +77,20 @@ The `status` subresource is updated by the Diverge controller to reflect the cur
 
 ## 2. `PreviewGroup` (`PreviewGroupSpec` & `PreviewGroupStatus`)
 
-`PreviewGroup` is a **cluster-scoped** CRD that manages a set of child `Environment` resources across one or more namespaces for a pull/merge request.
+`PreviewGroup` is a **cluster-scoped** CRD that manages a set of child `Environment` resources across one or more namespaces for a pull/merge request or composed multi-MR group (with `divergedev.com/composed: "true"` and `divergedev.com/group-members`).
 
 ### `PreviewGroupSpec`
 - **`source`**: Origin metadata (`provider`: `github` | `gitlab` | `local`, `project`, `mr`, `branch`).
 - **`routing`**: Shared routing header configuration (`headerKey`, `headerValue`, `externalURL`).
+- **`database`**: Optional shared group-level `EnvironmentDatabase` configuration inherited by child services when set (omitted by default so composed services preserve their own database settings).
 - **`clusterRef`**: Optional group-wide federated spoke cluster target (`ClusterTargetRef`), inherited by child services unless overridden in `services[].clusterRef`.
 - **`services`**: List of `ServicePreviewSpec` entries (`name`, `namespace`, `mode`: `image` | `local` | `baseline`, `image`, `port`, `localEndpoint`, `database`, `asyncRoutes`, `clusterRef`).
 - **`lifecycle`**: Group lifespan (`ttl`, `cleanupOnMerge`).
 
 ### `PreviewGroupStatus`
-- **`phase`**: Current phase (`Pending`, `Deploying`, `Running`, `Degraded`, `Failed`, `Terminating`).
+- **`phase`**: Current phase (`Pending`, `Deploying`, `Running`, `Degraded`, `Failed`, `Terminating`, `Abandoned`).
 - **`services`**: Per-service status (`name`, `namespace`, `mode`, `environmentName`, `targetCluster`, `phase`, `url`, `ready`).
+- **`commentID`** / **`commentSource`**: Comment ID and SCM PR/MR source (`<provider>:<project>#<mr>`) persisted atomically in status so source promotion never leaves a stale comment ID.
 - **`conditions`**: Standard Kubernetes conditions (`Ready`, `ReferenceGrantsReady`).
 
 ---

@@ -121,8 +121,55 @@ Create a multi-service `PreviewGroup`.
 ### `diverge preview delete <name>`
 Delete preview group.
 
+### `diverge preview join <group-name>`
+Create or join a shared multi-MR `PreviewGroup` without overwriting services registered by other repositories or MRs (alias: `diverge preview attach`). Preserves per-service database configs by default unless `--db-mode` is set.
+- `-c, --config` — Path to `.diverge.yaml` config file (default: `.diverge.yaml`)
+- `--service` — Service spec (`name=image[:port]` or `name` for baseline; repeatable)
+- `--from-env` — Attach existing `Environment` CR(s) (`<name>` or `<namespace>/<name>`; repeatable)
+- `--header-key` — Routing header key (default: `x-diverge-env`)
+- `--header-value` — Routing header value (default: normalized `<group-name>`)
+- `--base-url` — Optional staging/gateway base URL to populate a shareable `?_diverge_env=<group>` URL
+- `--ttl` — Group TTL duration (e.g. `8h`, `24h`)
+- `--mr` — PR/MR number for membership provenance tracking
+- `--project` — Repository path (e.g. `acme/payments-api`)
+- `--branch` — Source branch override
+- `--provider` — SCM provider override (`github`, `gitlab`, `local`)
+- `--db-mode` — Optional shared group-level database mode (`shared`, `schema`, `snapshot`, `fresh`, `cnpg`, `neon`)
+- `--db-seed-source` — Optional seed source when `--db-mode` is set
+- `--cluster` — Target spoke cluster name (or `local` to force hub)
+- `--cluster-secret` — Same-namespace Secret (`<name>` or `<name>/<key>`) holding spoke kubeconfig
+- `--force` — Allow replacing a service currently owned by another MR or `Environment`
+- `--prune-mr` — Remove prior services contributed by the same `--project` and `--mr` that are no longer in `--service`
+- `--dry-run` — Render `PreviewGroup` YAML without applying
+
+```bash
+# Combine two open PR environments (frontend + backend) into one shared preview URL
+diverge preview join feat-checkout \
+  --from-env frontend/pr-acme-web-101 \
+  --from-env backend/pr-acme-payments-42 \
+  --base-url https://staging.acme.dev
+
+# Join from CI using the branch slug as the shared group
+diverge preview join feat/checkout \
+  --service payments-api=ghcr.io/acme/payments-api:pr-42 \
+  --project acme/payments-api \
+  --mr 42
+```
+
+### `diverge preview leave <group-name>`
+Detach specific services, `Environment` CRs, or a PR/MR from a shared `PreviewGroup` (falling back to baseline) and automatically delete the `PreviewGroup` when no active preview services remain (alias: `diverge preview detach`).
+- `--service` — Service name(s) to detach (repeatable)
+- `--from-env` — `Environment` CR name(s) (`<name>` or `<namespace>/<name>`) whose service should be detached (repeatable)
+- `--mr` — PR/MR number whose contributed service(s) should be detached
+- `--project` — Repository path when detaching by `--mr` (defaults to current git remote)
+- `--provider` — SCM provider filter when detaching by `--mr` (`github`, `gitlab`)
+
+```bash
+diverge preview leave feat-checkout --project acme/payments-api --mr 42
+```
+
 ### `diverge preview status <name>`
-Preview group status.
+Display routing header, phase, external URL, joined MR member provenance (`repo#PR · branch · env:<name>`), and per-service readiness and target cluster for a `PreviewGroup`.
 
 ### `diverge preview watch <name>`
 Watch until Ready/Failed.

@@ -7,7 +7,7 @@ Diverge provides first-class GitHub integration for automatic preview environmen
 
 ## 1. Controller Setup
 
-Create the controller and preview namespaces, store your GitHub API token and webhook shared secret as Kubernetes Secrets, and install the Diverge `0.28.0` Helm chart:
+Create the controller and preview namespaces, store your GitHub API token and webhook shared secret as Kubernetes Secrets, and install the Diverge `0.29.0` Helm chart:
 
 ```bash
 kubectl create namespace diverge-system
@@ -19,7 +19,7 @@ kubectl -n diverge-system create secret generic diverge-webhook-token \
   --from-literal=token=<webhook-secret>
 
 helm install diverge oci://ghcr.io/divergedev/charts/diverge \
-  --version 0.28.0 \
+  --version 0.29.0 \
   --namespace diverge-system \
   --set notifier.provider=github \
   --set notifier.tokenSecretRef.name=diverge-github \
@@ -78,9 +78,9 @@ Starting in `v0.24.0+`, when `deploy.provider: direct` and `deploy.manifestSourc
 | Event / Action | Diverge Behavior |
 |----------------|-----------------|
 | `pull_request`: `opened`, `reopened` | Creates `Environment` / `PreviewGroup` CR |
-| `pull_request`: `synchronize` (new push) | Updates the CR with new commit SHA |
-| `pull_request`: `closed` | Deletes the CR (triggers teardown) |
-| `issue_comment`: `created` | Parses `/diverge` slash commands on PRs (`preview`, `verify`, `replay`, `fix`, `guide`, `budget`, `status`, `help`, `extend-ttl`, `teardown`, `pause`, `resume`) |
+| `pull_request`: `synchronize` (new push) | Updates the CR with new commit SHA and syncs updated images into any joined multi-MR `PreviewGroup`s |
+| `pull_request`: `closed` | Detaches the PR from any shared multi-MR `PreviewGroup`s (deleting the group when empty) and deletes standalone CRs |
+| `issue_comment`: `created` | Parses `/diverge` slash commands on PRs (`preview`, `group`, `ungroup`, `verify`, `replay`, `fix`, `guide`, `budget`, `status`, `help`, `extend-ttl`, `teardown`, `pause`, `resume`) |
 
 ---
 
@@ -91,6 +91,8 @@ When `Issue comments` (`issue_comment`) events are delivered to `/github-webhook
 | Slash Command | Action |
 |---------------|--------|
 | `/diverge preview` | Provisions or refreshes the `Environment` for the Pull Request (`pr-<number>`) |
+| `/diverge group <name> [--db-mode <mode>]` | Creates or joins a shared multi-MR `PreviewGroup` from this PR's `Environment` or single-MR `PreviewGroup` without overwriting sibling MRs' services (aliases: `/diverge join`, `/diverge attach`). Preserves per-MR database configs by default unless `--db-mode` (`shared`, `schema`, `snapshot`, `fresh`, `cnpg`, `neon`) is set; subsequent commits automatically sync updated images and closing detaches only this PR. Requires cluster-scoped controller RBAC (`rbac.namespaceScoped=false`). |
+| `/diverge ungroup [name]` | Detaches this PR's services from `<name>` (or all shared `PreviewGroup`s when omitted; aliases: `/diverge leave`, `/diverge detach`), auto-deleting the group when the last active MR leaves |
 | `/diverge verify [path] [--fix]` | Runs Kubernetes workload `doctor` diagnostics and routed HTTP readiness + baseline parity probes against the PR preview environment (defaults to `/`) and posts a Markdown scorecard; pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
 | `/diverge replay [path ...] [--fix]` | Replays inline whitespace-separated `GET` probe paths against baseline and the PR preview environment (defaults to `/`), diffing status codes, latency, and JSON/Protobuf response contracts (supporting header-routed and subdomain-routed previews when a baseline URL is configured via `spec.routing.externalUrl`); pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
 | `/diverge fix <objective>` | Spawns an autonomous `AgentTask` (`fix-pr-<number>`) with `divergedev.com/preview-enabled: "true"` and your custom objective (defaults to fixing PR issues) |
@@ -99,7 +101,7 @@ When `Issue comments` (`issue_comment`) events are delivered to `/github-webhook
 | `/diverge status` | Posts an immediate Markdown summary of active `AgentTask`s and linked preview environments |
 | `/diverge help` | Displays the interactive slash command reference table |
 | `/diverge extend-ttl [duration]` | Extends the preview environment TTL (e.g. `/diverge extend-ttl 4h`, defaults to `24h`) |
-| `/diverge teardown` | Immediately deletes the `Environment` (`pr-<number>`) and `PreviewGroup` (`mr-<number>`) for the PR |
+| `/diverge teardown` | Detaches the PR from any shared multi-MR `PreviewGroup`s (auto-deleting empty groups) and immediately deletes standalone `Environment` (`pr-<number>`) and `PreviewGroup` (`mr-<number>`) resources |
 | `/diverge pause` | Suspends the active `AgentTask` (`fix-pr-<number>`) by setting `spec.suspended: true`, revoking its Macaroon token, and hibernating its linked preview |
 | `/diverge resume [+$budget] [tokens]` | Resumes a paused `AgentTask` (`fix-pr-<number>`) by setting `spec.suspended: false`, optionally bumping budget, and minting a fresh Macaroon token |
 
@@ -111,9 +113,9 @@ For security, Diverge verifies the commenter's `author_association` before execu
 
 ## 3. GitHub Actions Workflow
 
-### Turnkey Composite Action (`divergedev/diverge@v0.28.0` — Recommended)
+### Turnkey Composite Action (`divergedev/diverge@v0.29.0` — Recommended)
 
-Use the official `divergedev/diverge@v0.28.0` composite GitHub Action (defined in the root [`action.yml`](https://github.com/divergedev/diverge/blob/main/action.yml) of `divergedev/diverge`) to validate `.diverge.yaml`, run `diverge diff`, deploy a delta `PreviewGroup` for only modified microservices, run `diverge verify` SLO/baseline checks, replay recorded `.jsonl` / `.har` traffic traces (including stateful `extract` / `{{var}}` multi-step flows and `--auto-fix` self-healing), and pass routing headers directly into Playwright or Cypress E2E tests:
+Use the official `divergedev/diverge@v0.29.0` composite GitHub Action (defined in the root [`action.yml`](https://github.com/divergedev/diverge/blob/main/action.yml) of `divergedev/diverge`) to validate `.diverge.yaml`, run `diverge diff`, deploy a delta `PreviewGroup` for only modified microservices, run `diverge verify` SLO/baseline checks, replay recorded `.jsonl` / `.har` traffic traces (including stateful `extract` / `{{var}}` multi-step flows and `--auto-fix` self-healing), and pass routing headers directly into Playwright or Cypress E2E tests:
 
 :::caution[Sanitize Replay Traces Before Committing to Git]
 Scrub recorded `.jsonl` / `.har` traces with `diverge record` (plus `--redact-body-field`) or `diverge replay sanitize` **before committing them to the repository**. Runtime CI inputs (`replay-strip-auth: "true"`, `replay-redact-query`, `replay-redact-body-fields`) provide an additional safeguard during replay rather than a substitute for pre-commit sanitization.
@@ -145,7 +147,7 @@ jobs:
 
       - name: Deploy Diverge Delta Preview
         id: diverge
-        uses: divergedev/diverge@v0.28.0
+        uses: divergedev/diverge@v0.29.0
         with:
           action: deploy
           kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
@@ -176,7 +178,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: divergedev/diverge@v0.28.0
+      - uses: divergedev/diverge@v0.29.0
         with:
           action: teardown
           kubeconfig: ${{ secrets.PREVIEW_KUBECONFIG }}
@@ -197,7 +199,7 @@ export default defineConfig({
 });
 ```
 
-#### `divergedev/diverge@v0.28.0` Inputs
+#### `divergedev/diverge@v0.29.0` Inputs
 
 | Input | Default | Description |
 | :--- | :--- | :--- |
@@ -207,6 +209,7 @@ export default defineConfig({
 | `kubeconfig` | `""` | Raw or base64-encoded kubeconfig for the target Kubernetes cluster |
 | `namespace` | `default` | Default Kubernetes namespace for preview resources |
 | `preview-name` | `""` | Explicit `PreviewGroup` name override (defaults to `pr-<number>` or branch slug) |
+| `group` | `""` | Optional shared multi-MR `PreviewGroup` name or branch slug (e.g. `${{ github.head_ref }}`) to join on `deploy` (`diverge preview join`) and detach from on `teardown` (`diverge preview leave`) without overwriting sibling repos' services |
 | `base-ref` | `origin/<base_ref>` | Git base reference for `diverge diff` |
 | `branch` | `""` | Source branch name override |
 | `pr-number` | `""` | Pull request number override |
@@ -240,7 +243,7 @@ export default defineConfig({
 | `auto-fix` | `false` | Automatically create or update a self-healing `AgentTask` when `verify` or `replay` fails |
 | `dry-run` | `false` | Render `PreviewGroup` manifest without applying to Kubernetes |
 
-#### `divergedev/diverge@v0.28.0` Outputs
+#### `divergedev/diverge@v0.29.0` Outputs
 
 | Output | Example | Description |
 | :--- | :--- | :--- |
@@ -398,7 +401,7 @@ To pin a specific version:
 ```yaml
 - uses: divergedev/setup-diverge@v1
   with:
-    version: '0.28.0'
+    version: '0.29.0'
 ```
 
 It resolves the latest release via GitHub API, caches the binary per OS/arch/version using `actions/cache`, and adds `diverge` to `PATH`.

@@ -73,3 +73,13 @@ When `--database-provider=neon`, `spec.database.mode: neon`, or `divergedev.com/
 - **Dual Pooled & Direct Endpoints**: Writes both `DATABASE_URL` (pooled `-pooler.` connection URI) and `DATABASE_URL_DIRECT` (unpooled URI for DDL/migrations, falling back to the pooled URI when unpooled lookup fails) plus `DIVERGE_NEON_BRANCH_ID`, `DIVERGE_NEON_BRANCH_NAME`, and `DIVERGE_NEON_PROJECT_ID` into the generated `diverge-db-env-<env>` Secret.
 - **Non-Blocking Provisioning**: Automatically requeues every `3s` while a branch is in `init` or when Neon returns `423 Locked` due to a concurrent project operation.
 - **SSRF & Credential Isolation**: Enforces `https://` with dial-time private/loopback/link-local IP blocking, requires a Secret-scoped `apiKey` whenever `spec.database.connectionRef` overrides `baseUrl`, and keeps Neon API credentials strictly hub-side (never mounting the referenced API credential Secret into preview pods).
+
+## Shared Group-Level Databases in Multi-MR PreviewGroups (`v0.29+`)
+
+When composing multiple open PRs/MRs into one `PreviewGroup`, Diverge preserves each joined service's existing per-service database configuration by default so unrelated services keep their own schemas or branches.
+
+When participating services need to test against a single shared transactional database together, configure a shared group-level database on `PreviewGroup.spec.database` (via `diverge preview join --db-mode <mode>`, `/diverge group <name> --db-mode <mode>`, MCP `shared_database_mode`, or the Dashboard Composer's shared database mode selector):
+
+- **All Six Modes Supported**: Works across `shared`, `schema`, `snapshot`, `fresh`, `cnpg`, and `neon`.
+- **Cross-Namespace & Cross-Spoke Propagation**: For in-cluster CloudNativePG (`cnpg`), Diverge rewrites connection strings to cluster-qualified `<svc>.<anchorNS>.svc` DNS addresses, and for `neon` / `cnpg` propagates the group database Secret into each child service namespace (including federated spoke clusters).
+- **Safe Migration & Teardown Lifecycle**: Tracks durable group migration completion digests so schema migrations run consistently for the group, and drains child workloads before disabling or switching off a shared group database.

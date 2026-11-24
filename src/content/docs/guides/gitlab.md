@@ -7,7 +7,7 @@ Diverge provides first-class GitLab integration for automatic preview environmen
 
 ## 1. Controller Setup
 
-Create the controller and preview namespaces, store your GitLab API token and webhook shared secret as Kubernetes Secrets, and install the Diverge `0.28.0` Helm chart (`--create-namespace` on Helm only creates `diverge-system`, so create `diverge-previews` explicitly too):
+Create the controller and preview namespaces, store your GitLab API token and webhook shared secret as Kubernetes Secrets, and install the Diverge `0.29.0` Helm chart (`--create-namespace` on Helm only creates `diverge-system`, so create `diverge-previews` explicitly too):
 
 ```bash
 kubectl create namespace diverge-system
@@ -19,7 +19,7 @@ kubectl -n diverge-system create secret generic diverge-webhook-token \
   --from-literal=token=<webhook-secret>
 
 helm install diverge oci://ghcr.io/divergedev/charts/diverge \
-  --version 0.28.0 \
+  --version 0.29.0 \
   --namespace diverge-system \
   --set notifier.provider=gitlab \
   --set notifier.tokenSecretRef.name=diverge-gitlab \
@@ -90,9 +90,9 @@ Starting in `v0.24.0+`, when `deploy.provider: direct` and `deploy.manifestSourc
 | Event / Action | Diverge Behavior |
 |----------------|-----------------|
 | `Merge Request Hook`: `open`, `reopen` | Creates `Environment` / `PreviewGroup` CR |
-| `Merge Request Hook`: `update` (new push) | Updates the CR with new commit SHA |
-| `Merge Request Hook`: `merge`, `close` | Deletes the CR (triggers teardown) |
-| `Note Hook` (on MergeRequest) | Parses `/diverge` slash commands on MRs (`preview`, `verify`, `replay`, `fix`, `guide`, `budget`, `status`, `help`, `extend-ttl`, `teardown`, `pause`, `resume`) |
+| `Merge Request Hook`: `update` (new push) | Updates the CR with new commit SHA and syncs updated images into any joined multi-MR `PreviewGroup`s |
+| `Merge Request Hook`: `merge`, `close` | Detaches the MR from any shared multi-MR `PreviewGroup`s (deleting the group when empty) and deletes standalone CRs |
+| `Note Hook` (on MergeRequest) | Parses `/diverge` slash commands on MRs (`preview`, `group`, `ungroup`, `verify`, `replay`, `fix`, `guide`, `budget`, `status`, `help`, `extend-ttl`, `teardown`, `pause`, `resume`) |
 
 ---
 
@@ -103,6 +103,8 @@ When **Comments** (`Note Hook`) events are enabled on `/gitlab-webhook`, develop
 | Slash Command | Action |
 |---------------|--------|
 | `/diverge preview` | Provisions or refreshes the `Environment` for the Merge Request (`mr-<iid>`) |
+| `/diverge group <name> [--db-mode <mode>]` | Creates or joins a shared multi-MR `PreviewGroup` from this MR's `Environment` or single-MR `PreviewGroup` without overwriting sibling MRs' services (aliases: `/diverge join`, `/diverge attach`). Preserves per-MR database configs by default unless `--db-mode` (`shared`, `schema`, `snapshot`, `fresh`, `cnpg`, `neon`) is set; subsequent commits automatically sync updated images and closing/merging detaches only this MR. Requires cluster-scoped controller RBAC (`rbac.namespaceScoped=false`). |
+| `/diverge ungroup [name]` | Detaches this MR's services from `<name>` (or all shared `PreviewGroup`s when omitted; aliases: `/diverge leave`, `/diverge detach`), auto-deleting the group when the last active MR leaves |
 | `/diverge verify [path] [--fix]` | Runs Kubernetes workload `doctor` diagnostics and routed HTTP readiness + baseline parity probes against the MR preview environment (defaults to `/`) and replies with a Markdown scorecard; pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
 | `/diverge replay [path ...] [--fix]` | Replays inline whitespace-separated `GET` probe paths against baseline and the MR preview environment (defaults to `/`), diffing status codes, latency, and JSON/Protobuf response contracts (supporting header-routed and subdomain-routed previews when a baseline URL is configured via `spec.routing.externalUrl`); pass `--fix` (or `--auto-fix`) to spawn/steer a self-healing `AgentTask` on failure |
 | `/diverge fix <objective>` | Spawns an autonomous `AgentTask` (`fix-mr-<iid>`) with `divergedev.com/preview-enabled: "true"` and your custom objective |
@@ -111,7 +113,7 @@ When **Comments** (`Note Hook`) events are enabled on `/gitlab-webhook`, develop
 | `/diverge status` | Posts an immediate Markdown summary of active `AgentTask`s and linked preview environments |
 | `/diverge help` | Displays the interactive slash command reference table |
 | `/diverge extend-ttl [duration]` | Extends the preview environment TTL (e.g. `/diverge extend-ttl 4h`, defaults to `24h`) |
-| `/diverge teardown` | Immediately deletes the `Environment` and `PreviewGroup` (`mr-<iid>`) for the MR |
+| `/diverge teardown` | Detaches the MR from any shared multi-MR `PreviewGroup`s (auto-deleting empty groups) and immediately deletes standalone `Environment` and `PreviewGroup` (`mr-<iid>`) resources |
 | `/diverge pause` | Suspends the active `AgentTask` (`fix-mr-<iid>`) by setting `spec.suspended: true`, revoking its Macaroon token, and hibernating its linked preview |
 | `/diverge resume [+$budget] [tokens]` | Resumes a paused `AgentTask` (`fix-mr-<iid>`) by setting `spec.suspended: false`, optionally bumping budget, and minting a fresh Macaroon token |
 
@@ -125,9 +127,9 @@ GitLab MR slash commands require configuring authorized numeric GitLab user IDs 
 
 ### Turnkey GitLab CI/CD Catalog Component (Recommended)
 
-Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v0.28.0`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
+Diverge ships an official GitLab CI/CD Catalog Component (`$CI_SERVER_FQDN/divergedev/diverge/preview@v0.29.0`, backed by [`ci/gitlab/.gitlab-ci-component.yml`](https://github.com/divergedev/diverge/blob/main/ci/gitlab/.gitlab-ci-component.yml) and `templates/preview/template.yml`).
 
-When `diverge_services` is left empty and `.diverge.yaml` is present in your repository, the component **automatically fetches the target branch, runs `diverge diff --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --output json`**, deploys a delta `PreviewGroup` (`mr-$CI_MERGE_REQUEST_IID`) for only the modified services, optionally runs `diverge verify` and/or `diverge replay` (including stateful `extract` / `{{var}}` chained traces and `diverge_auto_fix`), and exports a `preview.env` `dotenv` report artifact to downstream E2E test jobs:
+When `diverge_services` is left empty and `.diverge.yaml` is present in your repository, the component **automatically fetches the target branch, runs `diverge diff --base origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --output json`**, deploys a delta `PreviewGroup` (`mr-$CI_MERGE_REQUEST_IID` or the shared `diverge_group` slug via `diverge preview join` / `leave`), optionally runs `diverge verify` and/or `diverge replay` (including stateful `extract` / `{{var}}` chained traces and `diverge_auto_fix`), and exports a `preview.env` `dotenv` report artifact to downstream E2E test jobs:
 
 :::caution[Sanitize Replay Traces Before Committing to Git]
 Scrub recorded `.jsonl` / `.har` traces with `diverge record` (plus `--redact-body-field`) or `diverge replay sanitize` **before committing them to the repository**. Component inputs (`diverge_replay_strip_auth: "true"`, `diverge_replay_redact_query`, `diverge_replay_redact_body_fields`) provide an additional runtime safeguard during replay rather than a substitute for pre-commit sanitization.
@@ -135,7 +137,7 @@ Scrub recorded `.jsonl` / `.har` traces with `diverge record` (plus `--redact-bo
 
 ```yaml
 include:
-  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v0.28.0
+  - component: $CI_SERVER_FQDN/divergedev/diverge/preview@v0.29.0
     inputs:
       diverge_registry: "$CI_REGISTRY_IMAGE"
       diverge_base_url: "https://staging.example.com"
@@ -168,6 +170,7 @@ If you are self-hosting or referencing the template directly from the repository
 | `diverge_ttl` | `4h` | TTL for preview environments (e.g. `4h`, `24h`) |
 | `diverge_registry` | `""` | Container registry prefix for preview images (defaults to `$CI_REGISTRY_IMAGE`) |
 | `diverge_namespace` | `default` | Default Kubernetes namespace for preview workloads. When `diverge_verify` or `diverge_replay_from` is enabled, the kubeconfig context namespace must match this value. |
+| `diverge_group` | `""` | Optional shared multi-MR `PreviewGroup` name or branch slug (e.g. `$CI_COMMIT_REF_SLUG`) to join on deploy and detach from on cleanup |
 | `diverge_cluster` | `""` | Optional logical spoke cluster name (`local` or federated spoke name) |
 | `diverge_cluster_secret` | `""` | Same-namespace Kubernetes Secret holding the spoke kubeconfig when targeting a remote `diverge_cluster` |
 | `diverge_base_url` | `""` | Optional staging/gateway URL to construct a shareable `?_diverge_env=` preview URL |
@@ -223,11 +226,11 @@ variables:
 # All jobs needing the CLI use this image (git, curl, jq included)
 default:
   image:
-    name: ghcr.io/divergedev/diverge-cli:v0.28.0
+    name: ghcr.io/divergedev/diverge-cli:v0.29.0
     entrypoint: [""]
 ```
 
-To pin a specific version, replace `v0.28.0` with the desired tag. Use `latest` to always get the newest release.
+To pin a specific version, replace `v0.29.0` with the desired tag. Use `latest` to always get the newest release.
 
 #### Change Detection
 
