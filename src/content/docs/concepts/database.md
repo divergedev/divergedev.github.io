@@ -73,3 +73,13 @@ When `--database-provider=neon`, `spec.database.mode: neon`, or `divergedev.com/
 - **Dual Pooled & Direct Endpoints**: Writes both `DATABASE_URL` (pooled `-pooler.` connection URI) and `DATABASE_URL_DIRECT` (unpooled URI for DDL/migrations, falling back to the pooled URI when unpooled lookup fails) plus `DIVERGE_NEON_BRANCH_ID`, `DIVERGE_NEON_BRANCH_NAME`, and `DIVERGE_NEON_PROJECT_ID` into the generated `diverge-db-env-<env>` Secret.
 - **Non-Blocking Provisioning**: Automatically requeues every `3s` while a branch is in `init` or when Neon returns `423 Locked` due to a concurrent project operation.
 - **SSRF & Credential Isolation**: Enforces `https://` with dial-time private/loopback/link-local IP blocking, requires a Secret-scoped `apiKey` whenever `spec.database.connectionRef` overrides `baseUrl`, and keeps Neon API credentials strictly hub-side (never mounting the referenced API credential Secret into preview pods).
+
+## Shared Group-Level Databases in Multi-MR PreviewGroups (`v0.29+`)
+
+When composing multiple open PRs/MRs into one `PreviewGroup`, Diverge preserves each joined service's existing per-service database configuration by default so unrelated services keep their own schemas or branches.
+
+When participating services need to test against a single shared transactional database together, configure a shared group-level database on `PreviewGroup.spec.database` (via `diverge preview join --db-mode <mode>`, `/diverge group <name> --db-mode <mode>`, MCP `shared_database_mode`, or the Dashboard Composer's shared database mode selector):
+
+- **All Six Modes Supported**: Works across `shared`, `schema`, `snapshot`, `fresh`, `cnpg`, and `neon`.
+- **Same-Cluster Cross-Namespace vs. Cross-Cluster Reachability**: For in-cluster CloudNativePG (`cnpg`), Diverge provisions the shared database on the group's anchor cluster (`PreviewGroup.spec.clusterRef`, defaulting to the hub), rewrites connection strings to cluster-qualified `<svc>.<anchorNS>.svc` DNS addresses, and propagates the group database Secret to every child service namespace on that same cluster. Cluster-local databases (`cnpg`) cannot be routed across different clusters — if a child service targets a different cluster via `services[].clusterRef`, reconciliation rejects the cross-cluster binding. To share one group-level database across different hub and spoke clusters, use an externally reachable database such as `neon` (or an externally hosted Postgres endpoint).
+- **Safe Migration & Teardown Lifecycle**: Tracks durable group migration completion digests so schema migrations run consistently for the group, and drains child workloads before disabling or switching off a shared group database.

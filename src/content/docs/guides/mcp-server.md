@@ -50,8 +50,8 @@ All MCP tools are named using the `diverge_<snake_case_method>` pattern derived 
 The MCP server enforces strict security boundaries:
 - **Exposed Services**: `EnvironmentService`, `PreviewGroupService`, `AgentTask` helper operations, and the read-only FinOps summary tool `diverge_get_cost_summary` (scoped to `diverge_get_cost_summary` Macaroon capability without granting `Environment` list/watch access).
 - **Excluded Services**: Sensitive internal services and RPCs such as `AuthService`, `ClusterService.GetClusterInfo`, and `TunnelService` are **never** exposed to AI agents over MCP.
-- **CLI Safe Mode (`--allow-destructive`)**: The CLI `diverge mcp` `stdio` server omits destructive tools (`diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_delete_task`) by default unless `--allow-destructive` is explicitly passed.
-- **Remote Endpoint Authorization (`POST /mcp`)**: The remote `POST /mcp` endpoint exposes the registered toolset (including `diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_delete_task`) and controls access via Kubernetes RBAC / `SubjectAccessReview` for human and `ServiceAccount` callers, or via the Macaroon token's `namespace` and `tools` caveats for `AgentTask` callers.
+- **CLI Safe Mode (`--allow-destructive`)**: The CLI `diverge mcp` `stdio` server omits destructive tools (`diverge_delete_environment`, `diverge_delete_preview_group`, `diverge_leave_preview_group`, and `diverge_delete_task`) by default unless `--allow-destructive` is explicitly passed.
+- **Remote Endpoint Authorization (`POST /mcp`)**: The remote `POST /mcp` endpoint exposes the registered toolset (including `diverge_delete_environment`, `diverge_delete_preview_group`, `diverge_leave_preview_group`, and `diverge_delete_task`) and controls access via Kubernetes RBAC / `SubjectAccessReview` for human and `ServiceAccount` callers, or via the Macaroon token's `namespace` and `tools` caveats for `AgentTask` callers.
 
 ### Streaming RPC Handling
 
@@ -111,7 +111,7 @@ The MCP server provides the following tools grouped by service:
 | `diverge_get_environment` | Fetch details, conditions, URLs, and phase status of a specific preview environment. |
 | `diverge_list_environments` | List environments with optional filters (namespace, branch, phase, label selector) and pagination. |
 | `diverge_update_environment` | Update an existing environment spec or update mask. |
-| `diverge_delete_environment` | Delete an environment and clean up its resources (*requires `--allow-destructive`*). |
+| `diverge_delete_environment` | Delete an environment and clean up its resources (*requires `--allow-destructive` on CLI `stdio`*). |
 | `diverge_extend_ttl` | Extend the remaining Time-To-Live (TTL) for an active preview environment. |
 | `diverge_list_hook_jobs` | List database migration and post-deploy lifecycle hook Jobs for an environment. |
 | `diverge_retry_hook` | Re-trigger a failed lifecycle hook Job (e.g., migration or post-deploy task). |
@@ -124,7 +124,9 @@ The MCP server provides the following tools grouped by service:
 | `diverge_get_preview_group` | Retrieve status, member services, endpoints, and conditions for a PreviewGroup. |
 | `diverge_list_preview_groups` | List PreviewGroups across namespaces with label selectors and pagination. |
 | `diverge_update_preview_group` | Update configuration or service definitions for a PreviewGroup. |
-| `diverge_delete_preview_group` | Tear down a PreviewGroup and its child environments (*requires `--allow-destructive`*). |
+| `diverge_join_preview_group` | Create or join a shared multi-MR `PreviewGroup` by attaching existing PR/MR `Environment`s (`environment_names`) or explicit `services` (`name`, `image`, `namespace`, `port`, `mode`, `project`, `mr`, `branch`) plus `group_name`, `namespace`, `header_key`, `header_value`, `external_url`, `ttl_seconds`, `shared_database_mode`, and `force`. Preserves per-service database configs by default unless `shared_database_mode` is set. |
+| `diverge_leave_preview_group` | Detach services (`service_names`), environments (`environment_names`), or `project` + `mr` from a shared `PreviewGroup` (falling back to baseline) and automatically delete the `PreviewGroup` when the last active service leaves (*requires `--allow-destructive` on CLI `stdio`*). |
+| `diverge_delete_preview_group` | Tear down a PreviewGroup and its child environments (*requires `--allow-destructive` on CLI `stdio`*). |
 
 ### Built-in Helper & Diagnostic Tools
 
@@ -149,7 +151,7 @@ The MCP server provides the following tools grouped by service:
 | `diverge_pause_task` | Suspend an active `AgentTask` (`spec.suspended: true`) so the controller transitions it to `Paused` and revokes its Macaroon capability token upon reconciliation. |
 | `diverge_resume_task` | Resume a paused `AgentTask` and mint a fresh Macaroon capability token. |
 | `diverge_guide_task` | Send steering instructions or updated budget/iteration limits to an `AgentTask` and resume execution. |
-| `diverge_delete_task` | Delete an `AgentTask` and tear down its sandbox (*requires `--allow-destructive`*). |
+| `diverge_delete_task` | Delete an `AgentTask` and tear down its sandbox (*requires `--allow-destructive` on CLI `stdio`*). |
 
 ---
 
@@ -237,13 +239,13 @@ If your Diverge server is running behind a custom domain, set `DIVERGE_SERVER_UR
 ## 6. Destructive Operations
 
 By default, the CLI `diverge mcp` `stdio` server operates in **safe mode**:
-- Destructive tools (`diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_delete_task`) are **omitted** from the CLI's registered tool registry.
-- AI assistants connected over `stdio` cannot accidentally delete active preview environments, tear down running `PreviewGroup`s, or delete running `AgentTask`s unless `--allow-destructive` is set.
-- On the remote `POST /mcp` endpoint (`diverge-server`), `diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_delete_task` are exposed and governed by the caller's authorization: Kubernetes RBAC / `SubjectAccessReview` for human and `ServiceAccount` callers, or the Macaroon capability token's `namespace` and `tools` caveats for `AgentTask` callers.
+- Destructive tools (`diverge_delete_environment`, `diverge_delete_preview_group`, `diverge_leave_preview_group`, and `diverge_delete_task`) are **omitted** from the CLI's registered tool registry.
+- AI assistants connected over `stdio` cannot accidentally delete active preview environments, detach or tear down running `PreviewGroup`s, or delete running `AgentTask`s unless `--allow-destructive` is set.
+- On the remote `POST /mcp` endpoint (`diverge-server`), `diverge_delete_environment`, `diverge_delete_preview_group`, `diverge_leave_preview_group`, and `diverge_delete_task` are exposed and governed by the caller's authorization: Kubernetes RBAC / `SubjectAccessReview` for human and `ServiceAccount` callers, or the Macaroon capability token's `namespace` and `tools` caveats for `AgentTask` callers.
 
 ### Enabling Destructive Tools on the CLI
 
-To allow your AI assistant to use `diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_delete_task` over `diverge mcp`, append the `--allow-destructive` flag:
+To allow your AI assistant to use `diverge_delete_environment`, `diverge_delete_preview_group`, `diverge_leave_preview_group`, and `diverge_delete_task` over `diverge mcp`, append the `--allow-destructive` flag:
 
 ```json
 {
@@ -273,7 +275,7 @@ Enabling `--allow-destructive` allows the AI agent to initiate irreversible dele
 | Flag | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `--server-url` | `string` | `""` | Diverge API server URL. If empty, falls back to `DIVERGE_SERVER_URL` environment variable. |
-| `--allow-destructive` | `bool` | `false` | Enable destructive tools (`diverge_delete_environment`, `diverge_delete_preview_group`, and `diverge_delete_task`). |
+| `--allow-destructive` | `bool` | `false` | Enable destructive tools (`diverge_delete_environment`, `diverge_delete_preview_group`, `diverge_leave_preview_group`, and `diverge_delete_task`). |
 
 ### Global Flags
 

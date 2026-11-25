@@ -14,7 +14,7 @@ The Diverge Server is designed as a **stateless facade**. It does not have its o
 The server listens on `:8443` (ConnectRPC / HTTPS / Web Dashboard) and `:8080` (`http-compat` in-cluster HTTP endpoint for `DIVERGE_MCP_URL` and `DIVERGE_METER_URL`), exposing:
 
 - **Environment Service (`EnvironmentService`)**: Manages the lifecycle of individual `Environment` resources (create, list, get, update, delete, extend TTL, list/retry hooks).
-- **PreviewGroup Service (`PreviewGroupService`)**: Manages `PreviewGroup` resources, which orchestrate multi-service delta environments for a single MR/PR.
+- **PreviewGroup Service (`PreviewGroupService`)**: Manages single-MR and composed multi-MR `PreviewGroup` resources across namespaces, enforcing per-service-namespace Kubernetes `SubjectAccessReview` authorization (preventing cross-namespace TTL/member spoofing and Macaroon escape) and `If-Match` optimistic concurrency on `DeletePreviewGroup`.
 - **AgentTask Service (`AgentTaskService`)**: Manages autonomous `AgentTask` sandboxes (create, get, list, delete, pause, resume with budget bumps, live steering guidance, and pod log streaming).
 - **Cluster Service (`ClusterService`)**: Provides cluster-level metadata, topology graphs, and health information.
 - **Auth Service (`AuthService`)**: Handles authentication verification, OIDC browser login (`/auth/login`, `/auth/callback`), and identity endpoints.
