@@ -264,6 +264,8 @@ If your existing workflow builds and pushes `pr-<number>` tags, adding `group` w
 
 1. **Adopt the default `${GITHUB_SHA:0:12}` tag (Recommended)**: Tag and push every changed service image with `${GITHUB_SHA:0:12}` (unique per push so Kubernetes pulls updated images under the default `IfNotPresent` pull policy) and omit `image-tag`.
 2. **Pin an explicit `image-tag`**: Pass `image-tag` explicitly to `divergedev/diverge@v0.29.0` to match the tag your build step publishes. Prefer a commit-unique tag; if you reuse a mutable tag such as `pr-${{ github.event.pull_request.number }}`, also configure `imagePullPolicy: Always` on your services so nodes do not serve cached images from an earlier push.
+
+If your repository also enables webhook-driven `pull_request` sync on `/github-webhook`, note that the webhook handler tags synced images using the first 12 characters of `pull_request.head.sha` rather than the Actions merge commit `GITHUB_SHA`—either tag and push images with the first 12 characters of `github.event.pull_request.head.sha` and pass that same value as `image-tag`, or manage grouped preview image updates exclusively through CI.
 :::
 
 ```yaml
@@ -298,6 +300,7 @@ jobs:
         with:
           action: diff
 
+      # Authenticates the runner to push images; cluster nodes still need registry pull access (see note below)
       - name: Log in to GitHub Container Registry
         if: steps.diff.outputs.changed-count != '0'
         uses: docker/login-action@v3
@@ -319,7 +322,7 @@ jobs:
             docker push "ghcr.io/acme/${svc}:${IMAGE_TAG}"
           done < <(printf '%s' "$CHANGED_SERVICES" | jq -r '.[]')
 
-      # Runs even when changed-count == '0' so reverting all service changes detaches this PR from the group
+      # Runs even when changed-count == '0' to attempt best-effort detach (leave errors are ignored; see note below)
       - name: Join Shared PreviewGroup
         id: diverge
         uses: divergedev/diverge@v0.29.0
@@ -349,8 +352,10 @@ jobs:
           group: ${{ github.head_ref }}
 ```
 
-:::note[Shared `group` Value Across Repositories]
-Every participating PR across repositories—and both its `action: deploy` and `action: teardown` jobs—must resolve to the **same `group` value** to join and cleanly leave the same shared `PreviewGroup`. Setting `group: ${{ github.head_ref }}` works automatically when participating PRs use identical branch names across repositories (for example `feat/checkout`). If sibling PRs use different branch names (for example `feature/api` and `feature/web`), set one shared configured `group` name in each repository's workflow instead of `github.head_ref`, or join them interactively with `/diverge group <name>`.
+:::note[Shared `group`, Cluster Pull Access, and Best-Effort Detach]
+- **Shared `group` value across repositories**: Every participating PR across repositories—and both its `action: deploy` and `action: teardown` jobs—must resolve to the **same `group` value** to join and cleanly leave the same shared `PreviewGroup`. Setting `group: ${{ github.head_ref }}` works automatically when participating PRs use identical branch names across repositories (for example `feat/checkout`). If sibling PRs use different branch names (for example `feature/api` and `feature/web`), set one shared configured `group` name in each repository's workflow instead of `github.head_ref`, or join them interactively with `/diverge group <name>`.
+- **Cluster pull credentials for private GHCR packages**: Newly published GHCR packages are private by default, and `docker/login-action` authenticates only the GitHub Actions runner—not your Kubernetes cluster nodes. Ensure pushed preview images are accessible to the target cluster: for private packages, create a `kubernetes.io/dockerconfigjson` pull secret (with `read:packages` access) in the target namespace and attach it via `imagePullSecrets` on your workload manifests or the namespace's `default` `ServiceAccount` (or make the packages readable by the cluster); otherwise preview pods will enter `ImagePullBackOff`.
+- **Best-effort detach when `changed-count` is `0`**: When a subsequent push reverts all service changes (`changed-count == "0"`), `action: deploy` with `group` set invokes `diverge preview leave ... || true` and still exits `0` (`skipped=true`), so a transient cluster or RBAC error during detach will not fail the workflow. Verify that your PR's services no longer appear in `Members:` (or that the empty group was deleted) by running `diverge preview status <preview-name>` (using the normalized `preview-name` output), and if stale services remain attached, retry detachment manually with `diverge preview leave <group> --provider github --project <owner/repo> --mr <pr-number>`.
 :::
 
 ---
